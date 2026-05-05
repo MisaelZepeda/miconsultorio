@@ -41,7 +41,6 @@ function navegarMódulo(moduloId) {
     if(moduloId === 'agenda') cargarDatosCalendario();
     if(moduloId === 'pacientes') cargarDirectorioPacientes();
 
-    // Cierra el menú automáticamente al tocar una opción en el celular
     if (window.innerWidth <= 768) {
         document.querySelector('.sidebar').classList.remove('open');
         document.getElementById('sidebar-overlay').classList.remove('active');
@@ -325,21 +324,63 @@ function generarPDF(n, d, r, f, expNum) {
 }
 
 // ==========================================
-// 8. DIRECTORIO DE PACIENTES MAESTRO
+// 8. DIRECTORIO DE PACIENTES MAESTRO (INTEGRADO)
 // ==========================================
 async function cargarDirectorioPacientes() {
     const lista = document.getElementById('lista-busqueda');
-    lista.innerHTML = '<p>Cargando pacientes...</p>';
-    const snap = await db.collection('pacientes').orderBy('nombre').get();
-    const pacientes = snap.docs.map(d => ({ id: d.id, ...d.data() })); 
-    renderizarListaPacientes(pacientes);
+    lista.innerHTML = '<p>Cargando todos los pacientes...</p>';
+    
+    // 1. Traer pacientes NUEVOS (los que ya tienen número de expediente)
+    const snapPacientes = await db.collection('pacientes').get();
+    let listaPacientes = snapPacientes.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // 2. Traer pacientes ANTIGUOS (los que agendaron antes de la actualización)
+    const snapCitas = await db.collection('citas').get();
+    let telefonosRegistrados = listaPacientes.map(p => p.telefono);
+    
+    snapCitas.forEach(doc => {
+        const c = doc.data();
+        if (!telefonosRegistrados.includes(c.telefono) && c.nombre) {
+            listaPacientes.push({
+                id: c.telefono, // Usamos su teléfono como ID temporal
+                nombre: c.nombre,
+                telefono: c.telefono,
+                nacimiento: c.nacimiento || '',
+                sexo: c.sexo || 'N/D',
+                numExpediente: 'S/N' // Sin número de expediente aún
+            });
+            telefonosRegistrados.push(c.telefono);
+        }
+    });
+
+    // Ordenar toda la lista junta alfabéticamente
+    listaPacientes.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    renderizarListaPacientes(listaPacientes);
 }
 
 async function buscarPaciente() {
     const b = document.getElementById('busqueda-paciente').value.toLowerCase();
     if (!b) { cargarDirectorioPacientes(); return; }
-    const snap = await db.collection('pacientes').get();
-    const filtrados = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => 
+    
+    // Misma lógica de combinación para que el buscador encuentre a TODOS
+    const snapPacientes = await db.collection('pacientes').get();
+    let listaPacientes = snapPacientes.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    const snapCitas = await db.collection('citas').get();
+    let telefonosRegistrados = listaPacientes.map(p => p.telefono);
+    
+    snapCitas.forEach(doc => {
+        const c = doc.data();
+        if (!telefonosRegistrados.includes(c.telefono) && c.nombre) {
+            listaPacientes.push({
+                id: c.telefono, nombre: c.nombre, telefono: c.telefono,
+                nacimiento: c.nacimiento || '', sexo: c.sexo || 'N/D', numExpediente: 'S/N'
+            });
+            telefonosRegistrados.push(c.telefono);
+        }
+    });
+
+    const filtrados = listaPacientes.filter(p => 
         p.nombre.toLowerCase().includes(b) || p.telefono.includes(b) || (p.numExpediente && p.numExpediente.toLowerCase().includes(b))
     );
     renderizarListaPacientes(filtrados);
@@ -347,6 +388,8 @@ async function buscarPaciente() {
 
 function renderizarListaPacientes(arr) {
     const lista = document.getElementById('lista-busqueda'); lista.innerHTML = '';
+    if (arr.length === 0) lista.innerHTML = '<p style="color:var(--muted);">No hay pacientes registrados.</p>';
+    
     arr.forEach(p => {
         const div = document.createElement('div'); div.className = 'card'; div.style.marginBottom = '10px'; div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.alignItems = 'center'; div.style.flexWrap = 'wrap';
         div.innerHTML = `<div style="flex:1; min-width: 200px;"><strong>${p.nombre}</strong> <span style="color:var(--primary); font-size:12px; font-weight:bold;">[${p.numExpediente || 'S/N'}]</span><br><small>Tel: ${p.telefono} | Sexo: ${p.sexo}</small></div><button onclick="verHistorial('${p.id}', '${p.nombre}', '${p.nacimiento}', '${p.sexo}', '${p.numExpediente}')" class="btn-secondary" style="width:auto;padding:5px 15px; margin-top: 10px;">Ver Historial</button>`;
@@ -355,7 +398,16 @@ function renderizarListaPacientes(arr) {
 }
 
 async function verHistorial(pacienteId, nom, nac, sex, expNum) {
-    const snap = await db.collection('citas').where('pacienteId', '==', pacienteId).where('estado', '==', 'Completada').get();
+    // Si el ID son puros números, sabemos que es un paciente antiguo buscado por teléfono
+    const esTelefonoAntiguo = /^[0-9]+$/.test(pacienteId); 
+    let snap;
+    
+    if (esTelefonoAntiguo) {
+        snap = await db.collection('citas').where('telefono', '==', pacienteId).where('estado', '==', 'Completada').get();
+    } else {
+        snap = await db.collection('citas').where('pacienteId', '==', pacienteId).where('estado', '==', 'Completada').get();
+    }
+    
     let h = `<div style="background:#f1f5f9;padding:10px;border-radius:8px;margin-bottom:15px;font-size:13px;"><b>Expediente:</b> ${expNum || 'S/N'} | <b>Edad:</b> ${calcularEdad(nac)} | <b>Sexo:</b> ${sex}</div><div style="text-align:left;max-height:350px;overflow-y:auto;">`;
     if(snap.empty) h += `<p>No hay consultas registradas para este paciente.</p>`; else {
         snap.docs.forEach(doc => { 
