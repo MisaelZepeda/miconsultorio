@@ -420,10 +420,48 @@ async function verHistorial(pacienteId, nom, nac, sex, expNum) {
     Swal.fire({ title: `Historial`, html: h + `</div>`, width: 600 });
 }
 
-// ==========================================
+// // ==========================================
 // 9. STAFF Y AGENDA (CALENDARIO)
 // ==========================================
-async function crearPersonal(e) { e.preventDefault(); const rol = document.getElementById('staff-rol').value, nom = document.getElementById('staff-nombre').value, email = document.getElementById('staff-email').value, pass = document.getElementById('staff-password').value; try { const n = await secondaryApp.auth().createUserWithEmailAndPassword(email, pass); await db.collection('usuarios').doc(n.user.uid).set({ nombre: nom, email: email, rol: rol }); await secondaryApp.auth().signOut(); Swal.fire('Éxito', 'Personal creado', 'success'); } catch(e) { Swal.fire('Error', 'Verifica datos', 'error'); } }
+async function crearPersonal(e) { 
+    e.preventDefault(); 
+    const rol = document.getElementById('staff-rol').value;
+    const nom = document.getElementById('staff-nombre').value;
+    const email = document.getElementById('staff-email').value;
+    const pass = document.getElementById('staff-password').value; 
+    
+    try { 
+        // 1. Creamos al usuario en Auth usando la app secundaria
+        const n = await secondaryApp.auth().createUserWithEmailAndPassword(email, pass); 
+        
+        // 2. Guardamos su perfil en la base de datos
+        await db.collection('usuarios').doc(n.user.uid).set({ 
+            nombre: nom, 
+            email: email, 
+            rol: rol 
+        }); 
+        
+        await secondaryApp.auth().signOut(); 
+        Swal.fire('Éxito', 'Personal creado correctamente', 'success'); 
+        e.target.reset(); // Limpia el formulario
+        
+    } catch(error) { 
+        // TRADUCTOR DE ERRORES DE FIREBASE
+        let mensajeReal = "Ocurrió un error inesperado.";
+        if (error.code === 'auth/email-already-in-use') {
+            mensajeReal = "Ese correo ya está registrado en el sistema.";
+        } else if (error.code === 'auth/invalid-email') {
+            mensajeReal = "El formato del correo es incorrecto.";
+        } else if (error.code === 'auth/weak-password') {
+            mensajeReal = "La contraseña debe tener al menos 6 caracteres.";
+        } else {
+            mensajeReal = error.message; // Mostrará el error técnico si es algo más
+        }
+        
+        Swal.fire('No se pudo crear', mensajeReal, 'error'); 
+    } 
+}
+
 let fechaNav = new Date(); let fechaSeleccionada = null; let citasDelMes = []; let bloqueosDelMes = [];
 function cambiarMes(delta) { fechaNav.setMonth(fechaNav.getMonth() + delta); cargarDatosCalendario(); }
 async function cargarDatosCalendario() { const year = fechaNav.getFullYear(), month = fechaNav.getMonth(); const p = `${year}-${String(month + 1).padStart(2, '0')}-01`, u = `${year}-${String(month + 1).padStart(2, '0')}-31`; const cSnap = await db.collection('citas').where('fecha', '>=', p).where('fecha', '<=', u).get(); citasDelMes = cSnap.docs.map(d => d.data()); const bSnap = await db.collection('bloqueos').where('fecha', '>=', p).where('fecha', '<=', u).get(); bloqueosDelMes = bSnap.docs.map(d => d.data()); dibujarCalendario(); }
