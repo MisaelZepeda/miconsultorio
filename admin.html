@@ -9,8 +9,8 @@
 </head>
 <body>
 
-    <div id="view-login" class="container">
-        <div class="card" style="max-width: 350px;">
+    <div id="view-login" class="container" style="display:flex; justify-content:center; align-items:center; height:100vh;">
+        <div class="card" style="width: 100%; max-width: 350px;">
             <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary);">Acceso Médico</h2>
             <form id="form-login" onsubmit="loginUsuario(event)">
                 <label>Correo Electrónico</label>
@@ -31,7 +31,7 @@
                 <button class="nav-btn" id="btn-agenda" onclick="navegarMódulo('agenda')">📅 Agenda del Dr.</button>
                 <button class="nav-btn" id="btn-pacientes" onclick="navegarMódulo('pacientes')">👤 Pacientes</button>
                 <button class="nav-btn" id="btn-perfil" onclick="navegarMódulo('perfil')">⚙️ Mi Perfil</button>
-                <button class="nav-btn" id="btn-asistencia" onclick="navegarMódulo('asistencia')">👥 Asistencia (Staff)</button>
+                <button class="nav-btn" id="btn-asistencia" onclick="navegarMódulo('asistencia')">👥 Asistencia</button>
             </nav>
             <div style="padding: 20px;">
                 <button onclick="logoutUsuario()" class="btn-secondary" style="border-color: var(--danger); color: var(--danger);">Cerrar Sesión</button>
@@ -42,8 +42,7 @@
             <header class="top-header">
                 <div class="user-welcome">
                     <img src="https://ui-avatars.com/api/?name=Doc&background=0ea5e9&color=fff" id="header-avatar" class="user-avatar" alt="Perfil">
-                    <div class="welcome-text">
-                        Bienvenido(a), <span id="header-nombre">Cargando...</span>
+                    <div class="welcome-text">Bienvenido(a), <span id="header-nombre">Cargando...</span>
                         <div id="header-rol" style="font-size: 12px; color: var(--muted);">Rol</div>
                     </div>
                 </div>
@@ -53,46 +52,58 @@
                 
                 <div id="mod-espera" class="module-section active">
                     <h2>Sala de Espera</h2>
-                    <p style="color: var(--muted); margin-bottom: 20px;">Pacientes programados para atención hoy.</p>
-                    <div class="card" style="max-width: 100%;">
-                        <div id="lista-citas"><p>Cargando citas pendientes...</p></div>
-                    </div>
+                    <p style="color: var(--muted); margin-bottom: 20px;">Pacientes programados para atención hoy en adelante.</p>
+                    <div id="lista-citas"></div>
                 </div>
 
                 <div id="mod-agenda" class="module-section">
                     <h2>Agenda Médica</h2>
-                    <p style="color: var(--muted); margin-bottom: 20px;">Administra tus días y horas disponibles.</p>
-                    <div class="card" style="max-width: 100%;">
-                        <p><i>(El calendario interactivo se construirá aquí en el siguiente paso)</i></p>
+                    <p style="color: var(--muted); margin-bottom: 20px;">Administra tus días, visualiza citas y bloquea horarios.</p>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div class="card" style="flex: 1; min-width: 300px;">
+                            <div class="calendario-header">
+                                <button onclick="cambiarMes(-1)" class="btn-secondary" style="padding: 5px 15px;">◀</button>
+                                <h3 id="mes-actual" style="text-transform: capitalize;">Cargando...</h3>
+                                <button onclick="cambiarMes(1)" class="btn-secondary" style="padding: 5px 15px;">▶</button>
+                            </div>
+                            <div class="calendario-grid">
+                                <div class="dia-semana">Dom</div><div class="dia-semana">Lun</div><div class="dia-semana">Mar</div>
+                                <div class="dia-semana">Mié</div><div class="dia-semana">Jue</div><div class="dia-semana">Vie</div><div class="dia-semana">Sáb</div>
+                            </div>
+                            <div class="calendario-grid" id="calendario-body"></div>
+                        </div>
+                        <div class="card" style="flex: 1; min-width: 300px;">
+                            <h3 id="dia-detalle-titulo" style="color: var(--primary);">Selecciona un día</h3>
+                            <div id="panel-citas-dia" style="margin-top: 15px; min-height: 100px;"></div>
+                            <div id="panel-bloqueos" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); display: none;">
+                                <h4 style="color: var(--danger); margin-bottom: 10px;">🚫 Bloquear Horarios</h4>
+                                <div id="lista-horas-bloqueo" style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px;"></div>
+                                <button onclick="guardarBloqueosDia()" class="btn-primary" style="background-color: var(--danger); margin-bottom: 10px;">Guardar Bloqueos</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div id="mod-pacientes" class="module-section">
                     <h2>Directorio de Pacientes</h2>
-                    <input type="text" id="busqueda-paciente" class="search-box" placeholder="Buscar por nombre o teléfono..." onkeyup="buscarPaciente()" style="margin-top: 15px; margin-bottom: 20px;">
-                    <div class="card" style="max-width: 100%;">
-                        <div id="lista-busqueda"><p style="color: var(--muted);">Escribe para buscar o ver la lista alfabética...</p></div>
-                    </div>
+                    <input type="text" id="busqueda-paciente" style="margin-top: 15px; margin-bottom: 20px;" placeholder="Buscar por nombre, teléfono o expediente..." onkeyup="buscarPaciente()">
+                    <div id="lista-busqueda"></div>
                 </div>
 
                 <div id="mod-perfil" class="module-section">
                     <h2>Configuración de Perfil</h2>
-                    <p style="color: var(--muted); margin-bottom: 20px;">Edita tus datos personales y credenciales.</p>
-                    <div class="card">
+                    <div class="card" style="max-width: 500px;">
                         <form id="form-perfil">
                             <label>Foto de Perfil</label>
                             <input type="file" id="perfil-foto" accept="image/*">
-                            
                             <label>Nombre Completo</label>
                             <input type="text" id="perfil-nombre" required>
-                            
                             <div id="campos-doctor">
                                 <label>Cédula Profesional</label>
                                 <input type="text" id="perfil-cedula">
                                 <label>Especialidad</label>
                                 <input type="text" id="perfil-especialidad">
                             </div>
-
                             <button type="button" class="btn-primary" style="margin-top: 20px;" onclick="solicitarGuardarPerfil()">Guardar Cambios</button>
                         </form>
                     </div>
@@ -100,20 +111,14 @@
 
                 <div id="mod-asistencia" class="module-section">
                     <h2>Administración de Staff</h2>
-                    <div class="card">
+                    <div class="card" style="max-width: 500px;">
                         <h3>Registrar Nuevo Personal</h3>
                         <form id="form-staff" onsubmit="crearPersonal(event)">
-                            <label>Rol del usuario</label>
-                            <select id="staff-rol" required>
-                                <option value="enfermera">Enfermero(a)</option>
-                                <option value="doctor">Doctor(a)</option>
-                            </select>
-                            <label>Nombre</label>
-                            <input type="text" id="staff-nombre" required>
-                            <label>Correo Electrónico</label>
-                            <input type="email" id="staff-email" required>
-                            <label>Contraseña Temporal</label>
-                            <input type="password" id="staff-password" required minlength="6">
+                            <label>Rol</label>
+                            <select id="staff-rol" required><option value="enfermera">Enfermero(a)</option><option value="doctor">Doctor(a)</option></select>
+                            <label>Nombre</label><input type="text" id="staff-nombre" required>
+                            <label>Correo</label><input type="email" id="staff-email" required>
+                            <label>Contraseña</label><input type="password" id="staff-password" required minlength="6">
                             <button type="submit" class="btn-primary" style="margin-top: 20px; background-color: #10b981;">Crear Cuenta</button>
                         </form>
                     </div>
@@ -123,11 +128,46 @@
         </main>
     </div>
 
+    <div id="modal-vitals" class="modal" style="display: none;">
+        <div class="card" style="width: 100%; max-width: 400px;">
+            <h3 id="vitals-paciente-nombre">Signos Vitales</h3>
+            <form onsubmit="guardarSignosVitales(event)">
+                <input type="hidden" id="vitals-cita-id">
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex:1"><label>Peso (kg)</label><input type="number" step="0.1" id="vit-peso" required></div>
+                    <div style="flex:1"><label>Estatura (m)</label><input type="number" step="0.01" id="vit-estatura" required></div>
+                </div>
+                <label>P. Arterial (ej. 120/80)</label><input type="text" id="vit-presion" required>
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex:1"><label>Temp (°C)</label><input type="number" step="0.1" id="vit-temp" required></div>
+                    <div style="flex:1"><label>FC (lpm)</label><input type="number" id="vit-fc" required></div>
+                </div>
+                <button type="submit" class="btn-primary" style="margin-top: 20px;">Guardar y Asignar Expediente</button>
+                <button type="button" onclick="cerrarModalVitals()" class="btn-secondary" style="margin-top: 10px;">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-consulta" class="modal" style="display: none;">
+        <div class="card" style="width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto;">
+            <h3 id="cons-paciente-nombre" style="color: var(--primary);">Consulta</h3>
+            <div id="cons-signos-vitales"></div>
+            <form onsubmit="guardarConsulta(event)">
+                <input type="hidden" id="cons-cita-id">
+                <label>Diagnóstico Médico</label>
+                <textarea id="cons-diagnostico" rows="3" required></textarea>
+                <label>Tratamiento / Receta</label>
+                <textarea id="cons-receta" rows="5" required></textarea>
+                <button type="submit" class="btn-primary" style="margin-top: 20px;">Finalizar y Emitir Receta (PDF)</button>
+                <button type="button" onclick="cerrarModalConsulta()" class="btn-secondary" style="margin-top: 10px;">Cerrar</button>
+            </form>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app-admin.js"></script>
 </body>
 </html>

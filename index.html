@@ -3,29 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agendar Cita - Consultorio Médico</title>
+    <title>Agendar Cita Médica</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
     <div class="container">
-        <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary);">Agendar Cita Médica</h2>
+        <h1 style="text-align: center; color: var(--primary); margin-bottom: 10px;">Consultorio Médico Digital</h1>
+        <p style="text-align: center; color: var(--muted); margin-bottom: 30px;">Agende su cita en línea de forma rápida y sencilla.</p>
+
+        <div class="card" style="max-width: 500px; margin: 0 auto;">
             <form id="form-agendar" onsubmit="agendarCita(event)">
-                <label>Nombre Completo</label>
+                <label>Nombre Completo del Paciente</label>
                 <input type="text" id="paciente-nombre" required placeholder="Ej. Juan Pérez">
                 
-                <label>Teléfono</label>
-                <input type="tel" id="paciente-telefono" required placeholder="Ej. 555-1234">
+                <label>Teléfono (A 10 dígitos)</label>
+                <input type="tel" id="paciente-telefono" required placeholder="Ej. 5551234567" pattern="[0-9]{10}">
                 
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 160px;">
-                        <label>Fecha</label>
+                        <label>Fecha de la cita</label>
                         <input type="date" id="paciente-fecha" required onchange="validarFecha(this.value)">
-                        <span id="error-fecha" style="color: var(--danger); font-size: 11px; display: none;">Solo atendemos de Lunes a Viernes</span>
+                        <span id="error-fecha" style="color: var(--danger); font-size: 11px; display: none;">Cerrado fines de semana</span>
                     </div>
                     <div style="flex: 1; min-width: 160px;">
-                        <label>Hora disponible</label>
+                        <label>Hora</label>
                         <select id="paciente-hora" required disabled>
                             <option value="">Seleccione una fecha primero</option>
                         </select>
@@ -33,19 +34,15 @@
                 </div>
 
                 <label>Motivo de la consulta</label>
-                <input type="text" id="paciente-motivo" required placeholder="Breve descripción de los síntomas">
+                <input type="text" id="paciente-motivo" required placeholder="Breve descripción de sus síntomas">
 
                 <button type="submit" class="btn-primary" style="margin-top: 25px;">Confirmar Cita</button>
             </form>
-            <p style="text-align: center; margin-top: 15px; font-size: 12px;">
-                <a href="admin.html" style="color: var(--muted);">Acceso Personal Médico</a>
-            </p>
         </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
     <script src="app-public.js"></script>
 </body>
 </html>
