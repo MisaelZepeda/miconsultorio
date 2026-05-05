@@ -20,11 +20,16 @@ const db = firebase.firestore();
 let currentUserRole = '';
 
 // ==========================================
-// 2. UI Y NAVEGACIÓN
+// 2. UI, NAVEGACIÓN Y MENÚ MÓVIL
 // ==========================================
 function mostrarNotificacion(mensaje, tipo = 'success') {
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
     Toast.fire({ icon: tipo, title: mensaje });
+}
+
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('active');
 }
 
 function navegarMódulo(moduloId) {
@@ -32,8 +37,15 @@ function navegarMódulo(moduloId) {
     document.querySelectorAll('.module-section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(`btn-${moduloId}`).classList.add('active');
     document.getElementById(`mod-${moduloId}`).classList.add('active');
+    
     if(moduloId === 'agenda') cargarDatosCalendario();
     if(moduloId === 'pacientes') cargarDirectorioPacientes();
+
+    // Cierra el menú automáticamente al tocar una opción en el celular
+    if (window.innerWidth <= 768) {
+        document.querySelector('.sidebar').classList.remove('open');
+        document.getElementById('sidebar-overlay').classList.remove('active');
+    }
 }
 
 // ==========================================
@@ -111,7 +123,7 @@ async function guardarPerfilReal(password) {
 }
 
 // ==========================================
-// 5. SALA DE ESPERA Y AUXILIARES
+// 5. SALA DE ESPERA
 // ==========================================
 function cargarCitas() {
     const hoyStr = new Date().toISOString().split('T')[0];
@@ -121,10 +133,10 @@ function cargarCitas() {
         snap.forEach(doc => { if (doc.data().estado !== 'Completada') citasHoy.push({id: doc.id, ...doc.data()}); });
         citasHoy.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora));
         citasHoy.forEach(c => {
-            const div = document.createElement('div'); div.className = 'card'; div.style.marginBottom = '15px'; div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.alignItems = 'center';
-            let botones = c.signosVitales ? `<span style="color:#10b981;font-weight:bold;">✅ Signos Listos</span>` : `<button onclick="abrirModalVitals('${c.id}')" class="btn-signos">🩺 Tomar Signos</button>`;
-            if (currentUserRole === 'doctor') botones += `<button onclick="abrirModalConsulta('${c.id}')" class="btn-primary" style="width:auto;margin-left:10px;padding:6px 12px;font-size:12px;background:#0284c7;">Atender</button>`;
-            div.innerHTML = `<div><strong>${c.nombre}</strong> <small>(${c.telefono})</small><br><span style="font-size:13px;">${c.motivo}</span><div style="margin-top:8px;">${botones}</div></div><div style="text-align:right"><b>${c.hora}</b><br><small>${c.fecha}</small></div>`;
+            const div = document.createElement('div'); div.className = 'card'; div.style.marginBottom = '15px'; div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.alignItems = 'center'; div.style.flexWrap = 'wrap';
+            let botones = c.signosVitales ? `<span style="color:#10b981;font-weight:bold;">✅ Signos Listos</span>` : `<button onclick="abrirModalVitals('${c.id}')" class="btn-signos" style="margin-top: 5px;">🩺 Tomar Signos</button>`;
+            if (currentUserRole === 'doctor') botones += `<button onclick="abrirModalConsulta('${c.id}')" class="btn-primary" style="width:auto;margin-left:10px;padding:6px 12px;font-size:12px;background:#0284c7;margin-top:5px;">Atender</button>`;
+            div.innerHTML = `<div style="flex: 1; min-width: 200px;"><strong>${c.nombre}</strong> <small>(${c.telefono})</small><br><span style="font-size:13px;">${c.motivo}</span><div style="margin-top:8px;">${botones}</div></div><div style="text-align:right; flex: 1; min-width: 100px; margin-top: 10px;"><b>${c.hora}</b><br><small>${c.fecha}</small></div>`;
             lista.appendChild(div);
         });
     });
@@ -336,8 +348,8 @@ async function buscarPaciente() {
 function renderizarListaPacientes(arr) {
     const lista = document.getElementById('lista-busqueda'); lista.innerHTML = '';
     arr.forEach(p => {
-        const div = document.createElement('div'); div.className = 'card'; div.style.marginBottom = '10px'; div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.alignItems = 'center';
-        div.innerHTML = `<div><strong>${p.nombre}</strong> <span style="color:var(--primary); font-size:12px; font-weight:bold;">[${p.numExpediente || 'S/N'}]</span><br><small>Tel: ${p.telefono} | Sexo: ${p.sexo}</small></div><button onclick="verHistorial('${p.id}', '${p.nombre}', '${p.nacimiento}', '${p.sexo}', '${p.numExpediente}')" class="btn-secondary" style="width:auto;padding:5px 15px;">Ver Historial</button>`;
+        const div = document.createElement('div'); div.className = 'card'; div.style.marginBottom = '10px'; div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.alignItems = 'center'; div.style.flexWrap = 'wrap';
+        div.innerHTML = `<div style="flex:1; min-width: 200px;"><strong>${p.nombre}</strong> <span style="color:var(--primary); font-size:12px; font-weight:bold;">[${p.numExpediente || 'S/N'}]</span><br><small>Tel: ${p.telefono} | Sexo: ${p.sexo}</small></div><button onclick="verHistorial('${p.id}', '${p.nombre}', '${p.nacimiento}', '${p.sexo}', '${p.numExpediente}')" class="btn-secondary" style="width:auto;padding:5px 15px; margin-top: 10px;">Ver Historial</button>`;
         lista.appendChild(div);
     });
 }
@@ -349,11 +361,11 @@ async function verHistorial(pacienteId, nom, nac, sex, expNum) {
         snap.docs.forEach(doc => { 
             const c = doc.data();
             h += `<div style="padding:10px;border-left:4px solid #0ea5e9;background:#fff;margin-bottom:10px;border:1px solid #eee;">
-                <div style="display:flex;justify-content:space-between;"><strong>${formatearFechaInvertida(c.fecha)}</strong> <button onclick="generarPDF('${nom}','${c.diagnostico.replace(/'/g,"")}', '${c.receta.replace(/'/g,"")}', '${c.fecha}', '${expNum}')" style="font-size:10px;padding:2px 5px;">Imprimir</button></div>
+                <div style="display:flex;justify-content:space-between; flex-wrap: wrap;"><strong>${formatearFechaInvertida(c.fecha)}</strong> <button onclick="generarPDF('${nom}','${c.diagnostico.replace(/'/g,"")}', '${c.receta.replace(/'/g,"")}', '${c.fecha}', '${expNum}')" style="font-size:10px;padding:4px 8px; margin-top: 5px;">Imprimir</button></div>
                 <small><b>Diag:</b> ${c.diagnostico}</small></div>`;
         });
     }
-    Swal.fire({ title: `Historial: ${nom}`, html: h + `</div>`, width: 600 });
+    Swal.fire({ title: `Historial`, html: h + `</div>`, width: 600 });
 }
 
 // ==========================================
