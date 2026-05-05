@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendar Cita - Consultorio Médico</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="container">
+        <div class="card">
+            <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary);">Agendar Cita Médica</h2>
+            <form id="form-agendar" onsubmit="agendarCita(event)">
+                <label>Nombre Completo</label>
+                <input type="text" id="paciente-nombre" required placeholder="Ej. Juan Pérez">
+                
+                <label>Teléfono</label>
+                <input type="tel" id="paciente-telefono" required placeholder="Ej. 555-1234">
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 160px;">
+                        <label>Fecha</label>
+                        <input type="date" id="paciente-fecha" required onchange="validarFecha(this.value)">
+                        <span id="error-fecha" style="color: var(--danger); font-size: 11px; display: none;">Solo atendemos de Lunes a Viernes</span>
+                    </div>
+                    <div style="flex: 1; min-width: 160px;">
+                        <label>Hora disponible</label>
+                        <select id="paciente-hora" required disabled>
+                            <option value="">Seleccione una fecha primero</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label>Motivo de la consulta</label>
+                <input type="text" id="paciente-motivo" required placeholder="Breve descripción de los síntomas">
+
+                <button type="submit" class="btn-primary" style="margin-top: 25px;">Confirmar Cita</button>
+            </form>
+            <p style="text-align: center; margin-top: 15px; font-size: 12px;">
+                <a href="admin.html" style="color: var(--muted);">Acceso Personal Médico</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <script src="app-public.js"></script>
+</body>
+</html>

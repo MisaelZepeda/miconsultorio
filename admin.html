@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Médico Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+    <div id="view-login" class="container">
+        <div class="card" style="max-width: 350px;">
+            <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary);">Acceso Médico</h2>
+            <form id="form-login" onsubmit="loginUsuario(event)">
+                <label>Correo Electrónico</label>
+                <input type="email" id="login-email" required>
+                <label>Contraseña</label>
+                <input type="password" id="login-password" required>
+                <button type="submit" class="btn-primary" style="margin-top: 20px;">Ingresar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="view-dashboard" class="app-layout" style="display: none;">
+        
+        <aside class="sidebar">
+            <div class="sidebar-logo">🩺 MiConsultorio</div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" id="btn-espera" onclick="navegarMódulo('espera')">⏳ Sala de Espera</button>
+                <button class="nav-btn" id="btn-agenda" onclick="navegarMódulo('agenda')">📅 Agenda del Dr.</button>
+                <button class="nav-btn" id="btn-pacientes" onclick="navegarMódulo('pacientes')">👤 Pacientes</button>
+                <button class="nav-btn" id="btn-perfil" onclick="navegarMódulo('perfil')">⚙️ Mi Perfil</button>
+                <button class="nav-btn" id="btn-asistencia" onclick="navegarMódulo('asistencia')">👥 Asistencia (Staff)</button>
+            </nav>
+            <div style="padding: 20px;">
+                <button onclick="logoutUsuario()" class="btn-secondary" style="border-color: var(--danger); color: var(--danger);">Cerrar Sesión</button>
+            </div>
+        </aside>
+
+        <main class="main-wrapper">
+            <header class="top-header">
+                <div class="user-welcome">
+                    <img src="https://ui-avatars.com/api/?name=Doc&background=0ea5e9&color=fff" id="header-avatar" class="user-avatar" alt="Perfil">
+                    <div class="welcome-text">
+                        Bienvenido(a), <span id="header-nombre">Cargando...</span>
+                        <div id="header-rol" style="font-size: 12px; color: var(--muted);">Rol</div>
+                    </div>
+                </div>
+            </header>
+
+            <section class="content-area">
+                
+                <div id="mod-espera" class="module-section active">
+                    <h2>Sala de Espera</h2>
+                    <p style="color: var(--muted); margin-bottom: 20px;">Pacientes programados para atención hoy.</p>
+                    <div class="card" style="max-width: 100%;">
+                        <div id="lista-citas"><p>Cargando citas pendientes...</p></div>
+                    </div>
+                </div>
+
+                <div id="mod-agenda" class="module-section">
+                    <h2>Agenda Médica</h2>
+                    <p style="color: var(--muted); margin-bottom: 20px;">Administra tus días y horas disponibles.</p>
+                    <div class="card" style="max-width: 100%;">
+                        <p><i>(El calendario interactivo se construirá aquí en el siguiente paso)</i></p>
+                    </div>
+                </div>
+
+                <div id="mod-pacientes" class="module-section">
+                    <h2>Directorio de Pacientes</h2>
+                    <input type="text" id="busqueda-paciente" class="search-box" placeholder="Buscar por nombre o teléfono..." onkeyup="buscarPaciente()" style="margin-top: 15px; margin-bottom: 20px;">
+                    <div class="card" style="max-width: 100%;">
+                        <div id="lista-busqueda"><p style="color: var(--muted);">Escribe para buscar o ver la lista alfabética...</p></div>
+                    </div>
+                </div>
+
+                <div id="mod-perfil" class="module-section">
+                    <h2>Configuración de Perfil</h2>
+                    <p style="color: var(--muted); margin-bottom: 20px;">Edita tus datos personales y credenciales.</p>
+                    <div class="card">
+                        <form id="form-perfil">
+                            <label>Foto de Perfil</label>
+                            <input type="file" id="perfil-foto" accept="image/*">
+                            
+                            <label>Nombre Completo</label>
+                            <input type="text" id="perfil-nombre" required>
+                            
+                            <div id="campos-doctor">
+                                <label>Cédula Profesional</label>
+                                <input type="text" id="perfil-cedula">
+                                <label>Especialidad</label>
+                                <input type="text" id="perfil-especialidad">
+                            </div>
+
+                            <button type="button" class="btn-primary" style="margin-top: 20px;" onclick="solicitarGuardarPerfil()">Guardar Cambios</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="mod-asistencia" class="module-section">
+                    <h2>Administración de Staff</h2>
+                    <div class="card">
+                        <h3>Registrar Nuevo Personal</h3>
+                        <form id="form-staff" onsubmit="crearPersonal(event)">
+                            <label>Rol del usuario</label>
+                            <select id="staff-rol" required>
+                                <option value="enfermera">Enfermero(a)</option>
+                                <option value="doctor">Doctor(a)</option>
+                            </select>
+                            <label>Nombre</label>
+                            <input type="text" id="staff-nombre" required>
+                            <label>Correo Electrónico</label>
+                            <input type="email" id="staff-email" required>
+                            <label>Contraseña Temporal</label>
+                            <input type="password" id="staff-password" required minlength="6">
+                            <button type="submit" class="btn-primary" style="margin-top: 20px; background-color: #10b981;">Crear Cuenta</button>
+                        </form>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script src="app-admin.js"></script>
+</body>
+</html>
