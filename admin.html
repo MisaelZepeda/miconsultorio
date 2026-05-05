@@ -35,21 +35,23 @@
                 <button class="nav-btn" id="btn-perfil" onclick="navegarMódulo('perfil')">⚙️ Mi Perfil</button>
                 <button class="nav-btn" id="btn-asistencia" onclick="navegarMódulo('asistencia')">👥 Asistencia</button>
             </nav>
-            <div style="padding: 20px;">
-                <button onclick="logoutUsuario()" class="btn-secondary" style="border-color: var(--danger); color: var(--danger);">Cerrar Sesión</button>
-            </div>
         </aside>
 
         <main class="main-wrapper">
+            
             <header class="top-header">
-                <div style="display: flex; align-items: center;">
-                    <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-                    <div class="user-welcome">
-                        <img src="https://ui-avatars.com/api/?name=Doc&background=0ea5e9&color=fff" id="header-avatar" class="user-avatar" alt="Perfil">
-                        <div class="welcome-text">Bienvenido(a), <span id="header-nombre">Cargando...</span>
-                            <div id="header-rol" style="font-size: 12px; color: var(--muted);">Rol</div>
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center;">
+                        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                        <div class="user-welcome">
+                            <img src="https://ui-avatars.com/api/?name=Doc&background=0ea5e9&color=fff" id="header-avatar" class="user-avatar" alt="Perfil">
+                            <div class="welcome-text">
+                                <span id="header-nombre" style="font-weight: bold;">Cargando...</span>
+                                <div id="header-rol" style="font-size: 12px; color: var(--muted);">Rol</div>
+                            </div>
                         </div>
                     </div>
+                    <button onclick="logoutUsuario()" class="btn-secondary" style="border-color: var(--danger); color: var(--danger); width: auto; padding: 6px 15px; font-size: 13px;">Cerrar Sesión</button>
                 </div>
             </header>
 
