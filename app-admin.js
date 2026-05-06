@@ -18,6 +18,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let currentUserRole = '';
+let currentUserData = {};
 
 // ==========================================
 // 2. UI Y NAVEGACIÓN
@@ -46,29 +47,34 @@ function navegarMódulo(moduloId) {
 // 3. AUTENTICACIÓN Y PERFIL
 // ==========================================
 async function loginUsuario(e) { e.preventDefault(); try { await auth.signInWithEmailAndPassword(document.getElementById('login-email').value, document.getElementById('login-password').value); } catch (e) { Swal.fire('Error', 'Credenciales incorrectas.', 'error'); } }
-function logoutUsuario() { auth.signOut(); }
+
+function logoutUsuario() { auth.signOut().then(() => { location.reload(); }); }
 
 auth.onAuthStateChanged(async (user) => {
     if (user) {
         const docUser = await db.collection('usuarios').doc(user.uid).get();
         if(docUser.exists) {
-            const data = docUser.data();
-            if(data.estado === 'suspendido' || data.estado === 'eliminado') { await auth.signOut(); Swal.fire('Acceso Denegado', 'Su cuenta está inactiva.', 'error'); return; }
-            currentUserRole = data.rol;
+            currentUserData = docUser.data();
+            if(currentUserData.estado === 'suspendido' || currentUserData.estado === 'eliminado') { await auth.signOut(); Swal.fire('Acceso Denegado', 'Su cuenta está inactiva.', 'error'); return; }
+            currentUserRole = currentUserData.rol;
         } else {
             currentUserRole = 'doctor';
-            await db.collection('usuarios').doc(user.uid).set({ rol: 'doctor', email: user.email, nombre: 'Dr. Principal', estado: 'activo' });
+            currentUserData = { rol: 'doctor', email: user.email, nombre: 'DR. PRINCIPAL', estado: 'activo' };
+            await db.collection('usuarios').doc(user.uid).set(currentUserData);
         }
-        
-        const userData = docUser.exists ? docUser.data() : { nombre: 'Dr. Principal' };
 
-        document.getElementById('header-nombre').innerText = userData.nombre || user.email;
-        document.getElementById('header-rol').innerText = currentUserRole === 'doctor' ? (userData.especialidad || 'Médico Especialista') : 'Enfermería';
-        if(userData.fotoUrl) document.getElementById('header-avatar').src = userData.fotoUrl;
-        document.getElementById('perfil-nombre').value = userData.nombre || '';
+        document.getElementById('header-nombre').innerText = currentUserData.nombre || user.email;
+        document.getElementById('header-rol').innerText = currentUserRole === 'doctor' ? (currentUserData.especialidad || 'Médico Especialista') : 'Enfermería';
+        if(currentUserData.fotoUrl) document.getElementById('header-avatar').src = currentUserData.fotoUrl;
         
+        document.getElementById('perfil-nombre').value = currentUserData.nombre || '';
         if(currentUserRole === 'doctor') {
-            document.getElementById('perfil-cedula').value = userData.cedula || ''; document.getElementById('perfil-especialidad').value = userData.especialidad || '';
+            document.getElementById('perfil-ced-fed').value = currentUserData.cedFed || '';
+            document.getElementById('perfil-ced-est').value = currentUserData.cedEst || '';
+            document.getElementById('perfil-especialidad').value = currentUserData.especialidad || '';
+            document.getElementById('receta-domicilio').value = currentUserData.domicilio || '';
+            document.getElementById('receta-pie-izq').value = currentUserData.pieReceta || '';
+            
             document.getElementById('btn-agenda').style.display = 'block'; document.getElementById('btn-pacientes').style.display = 'block'; document.getElementById('btn-asistencia').style.display = 'block'; document.getElementById('campos-doctor').style.display = 'block';
         } else {
             document.querySelectorAll('#btn-agenda, #btn-pacientes, #btn-asistencia, #campos-doctor').forEach(el => el.style.display = 'none'); navegarMódulo('espera'); 
@@ -79,16 +85,44 @@ auth.onAuthStateChanged(async (user) => {
     }
 });
 
-function comprimirImagen(file, maxWidth, maxHeight, quality) { return new Promise((resolve) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = (e) => { const img = new Image(); img.src = e.target.result; img.onload = () => { const canvas = document.createElement('canvas'); let w = img.width, h = img.height; if (w > h && w > maxWidth) { h *= maxWidth / w; w = maxWidth; } else if (h > maxHeight) { w *= maxHeight / h; h = maxHeight; } canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL('image/jpeg', quality)); }; }; }); }
-function solicitarGuardarPerfil() { Swal.fire({ title: 'Confirmar', text: "Ingresa tu contraseña:", input: 'password', showCancelButton: true }).then((r) => { if (r.isConfirmed && r.value) guardarPerfilReal(r.value); }); }
+function comprimirImagen(file, maxWidth, maxHeight, quality) { 
+    return new Promise((resolve) => { 
+        const reader = new FileReader(); reader.readAsDataURL(file); 
+        reader.onload = (e) => { 
+            const img = new Image(); img.src = e.target.result; 
+            img.onload = () => { 
+                const canvas = document.createElement('canvas'); let w = img.width, h = img.height; 
+                if (w > h && w > maxWidth) { h *= maxWidth / w; w = maxWidth; } else if (h > maxHeight) { w *= maxHeight / h; h = maxHeight; } 
+                canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); 
+                resolve(canvas.toDataURL('image/jpeg', quality)); 
+            }; 
+        }; 
+    }); 
+}
+
+function solicitarGuardarPerfil() { Swal.fire({ title: 'Confirmar', text: "Ingresa tu contraseña para guardar configuración:", input: 'password', showCancelButton: true }).then((r) => { if (r.isConfirmed && r.value) guardarPerfilReal(r.value); }); }
+
 async function guardarPerfilReal(password) {
-    try { await auth.signInWithEmailAndPassword(auth.currentUser.email, password); } catch(e) { Swal.fire('Error', 'Pass incorrecto.', 'error'); return; }
+    try { await auth.signInWithEmailAndPassword(auth.currentUser.email, password); } catch(e) { Swal.fire('Error', 'Contraseña incorrecta.', 'error'); return; }
+    
     const updateData = { nombre: document.getElementById('perfil-nombre').value.toUpperCase() }; 
-    if(currentUserRole === 'doctor') { updateData.cedula = document.getElementById('perfil-cedula').value.toUpperCase(); updateData.especialidad = document.getElementById('perfil-especialidad').value.toUpperCase(); }
+    if(currentUserRole === 'doctor') { 
+        updateData.cedFed = document.getElementById('perfil-ced-fed').value.toUpperCase(); 
+        updateData.cedEst = document.getElementById('perfil-ced-est').value.toUpperCase(); 
+        updateData.especialidad = document.getElementById('perfil-especialidad').value.toUpperCase(); 
+        updateData.domicilio = document.getElementById('receta-domicilio').value.toUpperCase();
+        updateData.pieReceta = document.getElementById('receta-pie-izq').value.toUpperCase();
+    }
+    
     const fotoInput = document.getElementById('perfil-foto'); if (fotoInput.files.length > 0) updateData.fotoUrl = await comprimirImagen(fotoInput.files[0], 200, 200, 0.6);
+    const logoInput = document.getElementById('receta-logo'); if (logoInput.files.length > 0) updateData.logoBase64 = await comprimirImagen(logoInput.files[0], 300, 300, 0.7);
+    const watInput = document.getElementById('receta-watermark'); if (watInput.files.length > 0) updateData.watermarkBase64 = await comprimirImagen(watInput.files[0], 500, 500, 0.5);
+
     await db.collection('usuarios').doc(auth.currentUser.uid).update(updateData);
+    currentUserData = {...currentUserData, ...updateData};
+
     document.getElementById('header-nombre').innerText = updateData.nombre; if(currentUserRole === 'doctor') document.getElementById('header-rol').innerText = updateData.especialidad; if(updateData.fotoUrl) document.getElementById('header-avatar').src = updateData.fotoUrl;
-    Swal.fire('¡Éxito!', 'Perfil actualizado.', 'success');
+    Swal.fire('¡Éxito!', 'Perfil y Configuración de Receta actualizados.', 'success');
 }
 
 async function cambiarContrasena(e) { e.preventDefault(); const nuevaPass = document.getElementById('perfil-pass').value; try { await auth.currentUser.updatePassword(nuevaPass); Swal.fire('Seguridad', 'Tu contraseña ha sido cambiada.', 'success'); e.target.reset(); } catch(error) { if(error.code === 'auth/requires-recent-login') { Swal.fire('Atención', 'Debes cerrar sesión y volver a entrar antes de cambiar tu contraseña.', 'warning'); } else { Swal.fire('Error', error.message, 'error'); } } }
@@ -102,27 +136,73 @@ async function toggleEstadoStaff(id, nuevoEstado) { await db.collection('usuario
 async function eliminarStaff(id) { Swal.fire({ title: '¿Seguro?', text: "Los registros que haya hecho este enfermero se conservarán intactos.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Eliminar' }).then(async (result) => { if (result.isConfirmed) { await db.collection('usuarios').doc(id).update({ estado: 'eliminado' }); cargarStaff(); } }); }
 
 // ==========================================
-// 5. SALA DE ESPERA
+// 5. SALA DE ESPERA INTELIGENTE Y CITAS EXPRESS
 // ==========================================
 function cargarCitas() {
     const hoyStr = new Date().toISOString().split('T')[0];
-    db.collection('citas').where('fecha', '>=', hoyStr).onSnapshot(snap => {
-        const lista = document.getElementById('lista-citas'); lista.innerHTML = ''; let citasHoy = [];
-        snap.forEach(doc => { if (doc.data().estado !== 'Completada') citasHoy.push({id: doc.id, ...doc.data()}); });
-        citasHoy.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora));
+    const fechaText = new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'});
+    if(document.getElementById('fecha-hoy')) document.getElementById('fecha-hoy').innerText = fechaText;
+
+    db.collection('citas').where('fecha', '==', hoyStr).onSnapshot(snap => {
+        const lista = document.getElementById('lista-citas'); lista.innerHTML = ''; 
+        let citasHoy = [];
+        const ahoraStr = new Date().toLocaleTimeString('es-ES', {hour12:false, hour:'2-digit', minute:'2-digit'});
+        
+        snap.forEach(doc => { 
+            const c = doc.data();
+            if (c.estado === 'Completada') return; 
+            if (!c.signosVitales && c.hora < ahoraStr) return; 
+            citasHoy.push({id: doc.id, ...c}); 
+        });
+
+        citasHoy.sort((a, b) => a.hora.localeCompare(b.hora));
+        
         citasHoy.forEach(c => {
             const div = document.createElement('div'); div.className = 'card'; div.style.marginBottom = '15px'; div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.alignItems = 'center'; div.style.flexWrap = 'wrap';
-            let botones = c.signosVitales ? `<span style="color:#10b981;font-weight:bold;">✅ Signos Listos</span>` : `<button onclick="abrirModalVitals('${c.id}')" class="btn-signos" style="margin-top: 5px;">🩺 Tomar Signos</button>`;
+            let botones = c.signosVitales 
+                ? `<button onclick="abrirModalVitals('${c.id}')" class="btn-secondary" style="margin-top: 5px; color:#10b981; border-color:#10b981;">✅ Corregir Signos</button>` 
+                : `<button onclick="abrirModalVitals('${c.id}')" class="btn-signos" style="margin-top: 5px;">🩺 Tomar Signos</button>`;
             
             if (currentUserRole === 'doctor') {
                 if(c.signosVitales) { botones += `<button onclick="abrirModalConsulta('${c.id}')" class="btn-primary" style="width:auto;margin-left:10px;padding:6px 12px;font-size:12px;background:#0284c7;margin-top:5px;">Atender</button>`; } 
                 else { botones += `<button disabled class="btn-disabled" style="width:auto;margin-left:10px;padding:6px 12px;font-size:12px;margin-top:5px;" title="La enfermera debe tomar los signos primero">Atender (Faltan Signos)</button>`; }
             }
-            div.innerHTML = `<div style="flex: 1; min-width: 200px;"><strong>${c.nombre}</strong> <small>(${c.telefono})</small><br><span style="font-size:13px;">${c.motivo}</span><div style="margin-top:8px;">${botones}</div></div><div style="text-align:right; flex: 1; min-width: 100px; margin-top: 10px;"><b>${c.hora}</b><br><small>${c.fecha}</small></div>`;
+            div.innerHTML = `<div style="flex: 1; min-width: 200px;"><strong>${c.nombre}</strong> <small>(${c.telefono || 'S/N'})</small><br><span style="font-size:13px;">${c.motivo}</span><div style="margin-top:8px;">${botones}</div></div><div style="text-align:right; flex: 1; min-width: 100px; margin-top: 10px;"><b>${c.hora}</b><br><small>${c.fecha}</small></div>`;
             lista.appendChild(div);
         });
+        
+        if (citasHoy.length === 0) lista.innerHTML = '<p style="color:var(--muted); text-align:center;">No hay pacientes en espera.</p>';
     });
 }
+
+async function consultaSinCita() {
+    const { value: formValues } = await Swal.fire({
+        title: 'Consulta Express',
+        html: `<input id="swal-nom" class="swal2-input" placeholder="Nombre Completo" style="text-transform:uppercase;">
+               <input id="swal-mot" class="swal2-input" placeholder="Motivo de la urgencia" style="text-transform:uppercase;">
+               <input id="swal-tel" class="swal2-input" placeholder="Teléfono" type="tel">`,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Añadir a Espera',
+        preConfirm: () => {
+            return [
+                document.getElementById('swal-nom').value.trim().toUpperCase(),
+                document.getElementById('swal-mot').value.trim().toUpperCase(),
+                document.getElementById('swal-tel').value.trim()
+            ]
+        }
+    });
+
+    if (formValues && formValues[0]) {
+        const hoy = new Date().toISOString().split('T')[0];
+        const ahora = new Date().toLocaleTimeString('es-ES', {hour12:false, hour:'2-digit', minute:'2-digit'});
+        await db.collection('citas').add({
+            nombre: formValues[0], motivo: formValues[1], telefono: formValues[2] || 'S/N', fecha: hoy, hora: ahora, estado: 'Pendiente', creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        Swal.fire('Agregado', 'Paciente añadido a la sala de espera.', 'success');
+    }
+}
+
 function formatearFechaInvertida(f) { if(!f) return ''; const p = f.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
 function calcularEdad(f) { if(!f) return 'N/D'; const h = new Date(); const c = new Date(f); let e = h.getFullYear() - c.getFullYear(); const m = h.getMonth() - c.getMonth(); if (m < 0 || (m === 0 && h.getDate() < c.getDate())) e--; return e; }
 async function generarNumeroExpediente() { const snap = await db.collection('pacientes').get(); const total = snap.size + 1; const year = new Date().getFullYear(); return `EXP-${year}-${String(total).padStart(4, '0')}`; }
@@ -142,10 +222,22 @@ async function crearPacienteManual(e) {
     document.getElementById('modal-nuevo-paciente').style.display = 'none'; e.target.reset(); Swal.fire('Excelente', `Paciente creado con expediente: ${numExp}`, 'success'); cargarDirectorioPacientes();
 }
 
-// ----------------------------------------------------
-// LÓGICA DE SIGNOS VITALES CORREGIDA (BUSCADOR INCLUIDO)
-// ----------------------------------------------------
-async function abrirModalVitals(idCita) { const docCita = await db.collection('citas').doc(idCita).get(); document.getElementById('vitals-cita-id').value = idCita; document.getElementById('vitals-paciente-nombre').innerText = `Cita de: ${docCita.data().nombre}`; document.getElementById('modal-vitals').style.display = 'flex'; }
+// ==========================================
+// TOMA Y CORRECCIÓN DE SIGNOS VITALES
+// ==========================================
+async function abrirModalVitals(idCita) { 
+    const docCita = await db.collection('citas').doc(idCita).get(); 
+    const cita = docCita.data();
+    document.getElementById('vitals-cita-id').value = idCita; 
+    document.getElementById('vitals-paciente-nombre').innerText = `Cita de: ${cita.nombre}`; 
+    
+    if(cita.signosVitales) {
+        document.getElementById('vit-peso').value = cita.signosVitales.peso || ''; document.getElementById('vit-estatura').value = cita.signosVitales.estatura || ''; document.getElementById('vit-presion').value = cita.signosVitales.presion || ''; document.getElementById('vit-temp').value = cita.signosVitales.temperatura || ''; document.getElementById('vit-fc').value = cita.signosVitales.frecuenciaCardiaca || '';
+    } else {
+        document.getElementById('vit-peso').value = ''; document.getElementById('vit-estatura').value = ''; document.getElementById('vit-presion').value = ''; document.getElementById('vit-temp').value = ''; document.getElementById('vit-fc').value = '';
+    }
+    document.getElementById('modal-vitals').style.display = 'flex'; 
+}
 function cerrarModalVitals() { document.getElementById('modal-vitals').style.display = 'none'; }
 
 async function guardarSignosVitales(e) {
@@ -158,64 +250,30 @@ async function guardarSignosVitales(e) {
     let pacienteIdFinal = cita.pacienteId || null; let nombreFinal = cita.nombre; 
 
     if (!pacienteIdFinal) {
-        // Opciones por defecto
-        let opciones = {
-            'NUEVO': '🟢 + CREAR NUEVO EXPEDIENTE',
-            'BUSCAR': '🔍 BUSCAR EXPEDIENTE EXISTENTE (MANUAL)'
-        };
-        
-        // Sugerencias por teléfono
+        let opciones = { 'NUEVO': '🟢 + CREAR NUEVO EXPEDIENTE', 'BUSCAR': '🔍 BUSCAR EXPEDIENTE EXISTENTE (MANUAL)' };
         const pacientesSnap = await db.collection('pacientes').where('telefono', '==', cita.telefono).get();
-        pacientesSnap.forEach(d => { 
-            const pData = d.data(); 
-            opciones[d.id] = `⭐ SUGERENCIA: [${pData.numExpediente || 'S/N'}] ${pData.nombre}`; 
-        });
+        pacientesSnap.forEach(d => { const pData = d.data(); opciones[d.id] = `⭐ SUGERENCIA: [${pData.numExpediente || 'S/N'}] ${pData.nombre}`; });
         
-        const { value: seleccion } = await Swal.fire({
-            title: 'Asignar Expediente',
-            text: '¿A qué expediente desea guardar estos signos vitales?',
-            input: 'select',
-            inputOptions: opciones,
-            showCancelButton: true,
-            confirmButtonText: 'Continuar'
-        });
+        const { value: seleccion } = await Swal.fire({ title: 'Asignar Expediente', text: '¿A qué expediente desea guardar estos signos vitales?', input: 'select', inputOptions: opciones, showCancelButton: true, confirmButtonText: 'Continuar' });
 
-        if(!seleccion) return; // Se canceló
+        if(!seleccion) return;
 
         if(seleccion === 'NUEVO') {
             const numExp = await generarNumeroExpediente();
             const newDoc = await db.collection('pacientes').add({ numExpediente: numExp, telefono: cita.telefono, nombre: cita.nombre, nombrePila: cita.nombrePila||'', apellido1: cita.apellido1||'', apellido2: cita.apellido2||'', nacimiento: cita.nacimiento||'', sexo: cita.sexo||'N/D', creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
-            pacienteIdFinal = newDoc.id;
-            Swal.fire('Expediente Creado', `Se generó el EXP: ${numExp}`, 'info');
+            pacienteIdFinal = newDoc.id; Swal.fire('Expediente Creado', `Se generó el EXP: ${numExp}`, 'info');
         } 
         else if (seleccion === 'BUSCAR') {
             const { value: term } = await Swal.fire({ title: 'Buscar Paciente', input: 'text', inputLabel: 'Escriba Nombre o Expediente:', inputPlaceholder: 'Ej. JUAN o EXP-2024', showCancelButton: true });
             if(!term) return;
-
-            const snap = await db.collection('pacientes').get();
-            let searchOpts = {};
-            snap.forEach(d => {
-                const p = d.data();
-                if (p.numExpediente !== 'S/N' && ((p.nombre && p.nombre.includes(term.toUpperCase())) || (p.numExpediente && p.numExpediente.includes(term.toUpperCase())))) {
-                    searchOpts[d.id] = `[${p.numExpediente}] ${p.nombre}`;
-                }
-            });
-
+            const snap = await db.collection('pacientes').get(); let searchOpts = {};
+            snap.forEach(d => { const p = d.data(); if (p.numExpediente !== 'S/N' && ((p.nombre && p.nombre.includes(term.toUpperCase())) || (p.numExpediente && p.numExpediente.includes(term.toUpperCase())))) { searchOpts[d.id] = `[${p.numExpediente}] ${p.nombre}`; } });
             if(Object.keys(searchOpts).length === 0) return Swal.fire('Sin resultados', 'No se encontró a nadie con ese nombre o dato.', 'error');
-
             const { value: selBusqueda } = await Swal.fire({ title: 'Seleccione el paciente correcto', input: 'select', inputOptions: searchOpts, showCancelButton: true });
             if(!selBusqueda) return;
-
-            pacienteIdFinal = selBusqueda;
-            const fDoc = await db.collection('pacientes').doc(selBusqueda).get();
-            nombreFinal = fDoc.data().nombre;
+            pacienteIdFinal = selBusqueda; const fDoc = await db.collection('pacientes').doc(selBusqueda).get(); nombreFinal = fDoc.data().nombre;
         } 
-        else {
-            // Eligió una sugerencia
-            pacienteIdFinal = seleccion; 
-            const fDoc = await db.collection('pacientes').doc(seleccion).get(); 
-            nombreFinal = fDoc.data().nombre; 
-        }
+        else { pacienteIdFinal = seleccion; const fDoc = await db.collection('pacientes').doc(seleccion).get(); nombreFinal = fDoc.data().nombre; }
     }
 
     await db.collection('citas').doc(idCita).update({ signosVitales: signos, pacienteId: pacienteIdFinal, nombre: nombreFinal });
@@ -232,10 +290,10 @@ async function abrirModalConsulta(citaId) {
     document.getElementById('cons-cita-id').value = citaId;
     if (p) {
         document.getElementById('cons-paciente-nombre').innerText = `Atendiendo a: ${p.nombre} (${edad} años)`;
-        document.getElementById('cons-signos-vitales').innerHTML = `<div style="background:#f1f5f9; padding:10px; border-radius:8px; font-size:13px;"><b>Expediente:</b> <span style="color:var(--primary); font-weight:bold;">${p.numExpediente || 'S/N'}</span> | ${p.sexo} | Nacimiento: ${formatearFechaInvertida(p.nacimiento)}<br><hr style="margin:8px 0; border:0; border-top:1px solid #ddd;"><b>Signos:</b> Peso: ${cita.signosVitales?.peso||'--'}kg | P.A: ${cita.signosVitales?.presion||'--'} | Temp: ${cita.signosVitales?.temperatura||'--'}°C | FC: ${cita.signosVitales?.frecuenciaCardiaca||'--'}</div>`;
+        document.getElementById('cons-info-paciente').innerHTML = `<b>Expediente:</b> <span style="color:var(--primary); font-weight:bold;">${p.numExpediente || 'S/N'}</span> | ${p.sexo} | Nacimiento: ${formatearFechaInvertida(p.nacimiento)}<br><hr style="margin:8px 0; border:0; border-top:1px solid #ddd;"><b>Signos:</b> Peso: ${cita.signosVitales?.peso||'--'}kg | P.A: ${cita.signosVitales?.presion||'--'} | Temp: ${cita.signosVitales?.temperatura||'--'}°C | FC: ${cita.signosVitales?.frecuenciaCardiaca||'--'}`;
     } else {
         document.getElementById('cons-paciente-nombre').innerText = `Atendiendo a: ${cita.nombre}`;
-        document.getElementById('cons-signos-vitales').innerHTML = "<span style='color:var(--danger);'>⚠️ Falta asignar expediente.</span>";
+        document.getElementById('cons-info-paciente').innerHTML = "<span style='color:var(--danger);'>⚠️ Falta asignar expediente.</span>";
     }
     document.getElementById('modal-consulta').style.display = 'flex';
 }
@@ -244,8 +302,8 @@ function cerrarModalConsulta() { document.getElementById('modal-consulta').style
 async function guardarConsulta(e) {
     e.preventDefault();
     const id = document.getElementById('cons-cita-id').value; 
-    const diag = document.getElementById('cons-diagnostico').value; 
-    const receta = document.getElementById('cons-receta').value;
+    const diag = document.getElementById('cons-diagnostico').value.toUpperCase(); 
+    const receta = document.getElementById('cons-receta').value.toUpperCase();
     const notaSecreta = document.getElementById('cons-nota').value.trim(); 
 
     const docCita = await db.collection('citas').doc(id).get(); const cita = docCita.data();
@@ -261,20 +319,38 @@ async function guardarConsulta(e) {
 }
 
 function generarPDF(n, d, r, f, expNum) {
-    const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: 'l', unit: 'in', format: [5.5, 8.5] });
+    const { jsPDF } = window.jspdf; 
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [8.5, 5.5] });
+    const config = currentUserData;
+
+    if(config.watermarkBase64) {
+        doc.saveGraphicsState(); doc.setGState(new doc.GState({opacity: 0.1}));
+        doc.addImage(config.watermarkBase64, 'JPEG', 2.5, 1.0, 3.5, 3.5); doc.restoreGraphicsState();
+    }
+    if(config.logoBase64) { doc.addImage(config.logoBase64, 'JPEG', 0.4, 0.3, 1.2, 1.2); }
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(config.nombre || "DR. NOMBRE", 4.25, 0.6, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(config.especialidad || "ESPECIALIDAD", 4.25, 0.85, { align: "center" });
+    doc.setFontSize(9); const textCed = `Céd. Fed: ${config.cedFed || '---'}  |  Céd. Est: ${config.cedEst || '---'}`; doc.text(textCed, 4.25, 1.05, { align: "center" });
+    doc.setLineWidth(0.01); doc.line(0.4, 1.4, 8.1, 1.4);
+
     const fImp = f ? formatearFechaInvertida(f) : new Date().toLocaleDateString();
-    doc.setFontSize(16); doc.setTextColor(14, 165, 233); doc.text("RECETA MÉDICA", 0.5, 0.8);
-    doc.setTextColor(0, 0, 0); doc.setFontSize(10); doc.text(`Paciente: ${n}`, 0.5, 1.2); 
-    doc.text(`Fecha: ${fImp}`, 6.0, 1.2); if(expNum) doc.text(`Expediente: ${expNum}`, 6.0, 1.4); 
-    doc.line(0.5, 1.5, 8.0, 1.5);
-    doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text("DIAGNÓSTICO:", 0.5, 1.9); doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.text(doc.splitTextToSize(d, 7.5), 0.5, 2.1);
-    doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text("TRATAMIENTO:", 0.5, 2.9); doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.text(doc.splitTextToSize(r, 7.5), 0.5, 3.1);
-    doc.line(5.5, 4.8, 7.5, 4.8); doc.text("Firma del Médico Tratante", 6.5, 5.0, {align: 'center'});
+    doc.setFontSize(10); doc.setFont("helvetica", "bold");
+    doc.text(`PACIENTE: ${n}`, 0.4, 1.7); doc.text(`FECHA: ${fImp}`, 6.5, 1.7);
+    if(expNum) doc.text(`EXP: ${expNum}`, 6.5, 1.9);
+
+    doc.text("DIAGNÓSTICO:", 0.4, 2.2); doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(d, 7.5), 0.4, 2.4);
+    doc.setFont("helvetica", "bold"); doc.text("TRATAMIENTO:", 0.4, 3.1); doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(r, 7.5), 0.4, 3.3);
+
+    doc.line(0.4, 4.7, 8.1, 4.7); doc.text("Firma del Médico", 6.5, 4.6, {align: 'center'});
+    doc.setFontSize(8); doc.setTextColor(100); doc.text(config.pieReceta || "", 0.4, 5.0);
+    doc.text(doc.splitTextToSize(config.domicilio || "", 3.0), 8.1, 5.0, { align: "right" });
+
     doc.autoPrint(); window.open(URL.createObjectURL(doc.output('blob')), '_blank');
 }
 
 // ==========================================
-// 7. DIRECTORIO Y UNIFICACIÓN
+// 7. DIRECTORIO Y UNIFICACIÓN (CORRECCIÓN DE BARRIDO TOTAL)
 // ==========================================
 async function cargarDirectorioPacientes() {
     const lista = document.getElementById('lista-busqueda'); lista.innerHTML = '<p>Cargando pacientes...</p>';
@@ -297,7 +373,7 @@ async function cargarDirectorioPacientes() {
 }
 
 async function buscarPaciente() {
-    const b = document.getElementById('busqueda-paciente').value.toLowerCase(); 
+    const b = document.getElementById('busqueda-paciente').value.toUpperCase(); 
     if (!b) { cargarDirectorioPacientes(); return; }
     
     const snapPacientes = await db.collection('pacientes').get();
@@ -313,7 +389,7 @@ async function buscarPaciente() {
         }
     });
 
-    const filtrados = lista.filter(p => p.nombre.toLowerCase().includes(b) || p.telefono.includes(b) || (p.numExpediente && p.numExpediente.toLowerCase().includes(b)));
+    const filtrados = lista.filter(p => p.nombre.includes(b) || p.telefono.includes(b) || (p.numExpediente && p.numExpediente.includes(b)));
     renderizarListaPacientes(filtrados);
 }
 
@@ -334,6 +410,9 @@ function renderizarListaPacientes(arr) {
     });
 }
 
+// -----------------------------------------------------
+// FUNCIÓN CORREGIDA: BARRIDO Y UNIFICACIÓN TOTAL
+// -----------------------------------------------------
 async function unificarBusquedaInteligente(telefonoOrigen, docIdRealSiExiste) {
     const { value: term } = await Swal.fire({ title: 'Buscar Expediente Oficial', input: 'text', inputLabel: 'Ingrese nombre o expediente a buscar:', inputPlaceholder: 'Ej. JUAN o EXP-2024', showCancelButton: true });
     if (!term) return;
@@ -341,7 +420,8 @@ async function unificarBusquedaInteligente(telefonoOrigen, docIdRealSiExiste) {
     const snap = await db.collection('pacientes').get(); let opciones = {};
     snap.forEach(d => {
         const p = d.data();
-        if (p.numExpediente !== 'S/N' && ((p.nombre && p.nombre.toLowerCase().includes(term.toLowerCase())) || (p.numExpediente && p.numExpediente.toLowerCase().includes(term.toLowerCase())))) {
+        if (d.id === docIdRealSiExiste) return; 
+        if (p.numExpediente !== 'S/N' && ((p.nombre && p.nombre.includes(term.toUpperCase())) || (p.numExpediente && p.numExpediente.includes(term.toUpperCase())))) {
             opciones[d.id] = `[${p.numExpediente}] ${p.nombre}`;
         }
     });
@@ -351,14 +431,31 @@ async function unificarBusquedaInteligente(telefonoOrigen, docIdRealSiExiste) {
     const { value: pacIdOficial } = await Swal.fire({ title: 'Seleccione el destino', input: 'select', inputOptions: opciones, showCancelButton: true });
 
     if (pacIdOficial) {
-        const batch = db.batch(); let citasSnap;
-        if(docIdRealSiExiste && docIdRealSiExiste !== 'null') citasSnap = await db.collection('citas').where('pacienteId', '==', docIdRealSiExiste).get();
-        else citasSnap = await db.collection('citas').where('telefono', '==', telefonoOrigen).get();
-        
-        citasSnap.forEach(doc => { batch.update(doc.ref, { pacienteId: pacIdOficial }); });
-        
-        if(docIdRealSiExiste && docIdRealSiExiste !== 'null') { batch.delete(db.collection('pacientes').doc(docIdRealSiExiste)); }
-        await batch.commit(); Swal.fire('Unificado', 'El historial se ha unido y el registro fantasma desapareció.', 'success'); cargarDirectorioPacientes();
+        const batch = db.batch();
+
+        if(docIdRealSiExiste && docIdRealSiExiste !== 'null') {
+            const citasSnap = await db.collection('citas').where('pacienteId', '==', docIdRealSiExiste).get();
+            citasSnap.forEach(doc => { batch.update(doc.ref, { pacienteId: pacIdOficial }); });
+
+            const apuntesSnap = await db.collection('apuntes').where('pacienteId', '==', docIdRealSiExiste).get();
+            apuntesSnap.forEach(doc => { batch.update(doc.ref, { pacienteId: pacIdOficial }); });
+
+            batch.delete(db.collection('pacientes').doc(docIdRealSiExiste));
+        }
+
+        if(telefonoOrigen) {
+            const citasHuerfanas = await db.collection('citas').where('telefono', '==', telefonoOrigen).get();
+            citasHuerfanas.forEach(doc => {
+                const c = doc.data();
+                if (!c.pacienteId || c.pacienteId === docIdRealSiExiste) {
+                    batch.update(doc.ref, { pacienteId: pacIdOficial });
+                }
+            });
+        }
+
+        await batch.commit();
+        Swal.fire('Unificado', 'Historial unido y paciente fantasma eliminado definitivamente.', 'success');
+        cargarDirectorioPacientes();
     }
 }
 
@@ -425,7 +522,7 @@ async function cargarFichaClinica() {
 }
 
 // ==========================================
-// 9. AGENDA (CALENDARIO)
+// 9. AGENDA (CALENDARIO COMPLETO)
 // ==========================================
 let fechaNav = new Date(); let fechaSeleccionada = null; let citasDelMes = []; let bloqueosDelMes = [];
 function cambiarMes(delta) { fechaNav.setMonth(fechaNav.getMonth() + delta); cargarDatosCalendario(); }
