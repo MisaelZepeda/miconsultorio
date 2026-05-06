@@ -62,10 +62,25 @@ function generarIntervalos(ocupadas) {
 async function agendarCita(e) {
     e.preventDefault();
     const btn = document.querySelector('#form-agendar button'); btn.innerText = "Agendando..."; btn.disabled = true;
+    
+    // 1. APLICAMOS toUpperCase() PARA EVITAR DUPLICADOS POR MAYÚSCULAS/MINÚSCULAS
+    const nom = document.getElementById('paciente-nombre').value.trim().toUpperCase();
+    const ap1 = document.getElementById('paciente-ap1').value.trim().toUpperCase();
+    const ap2 = document.getElementById('paciente-ap2').value.trim().toUpperCase();
+    const motivo = document.getElementById('paciente-motivo').value.trim().toUpperCase();
+    const nombreCompleto = [nom, ap1, ap2].filter(Boolean).join(' ');
+
     const citaObj = {
-        nombre: document.getElementById('paciente-nombre').value, telefono: document.getElementById('paciente-telefono').value,
-        fecha: document.getElementById('paciente-fecha').value, hora: document.getElementById('paciente-hora').value,
-        motivo: document.getElementById('paciente-motivo').value, estado: 'Pendiente', creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+        nombre: nombreCompleto,
+        nombrePila: nom, apellido1: ap1, apellido2: ap2,
+        nacimiento: document.getElementById('paciente-nacimiento').value,
+        sexo: document.getElementById('paciente-sexo').value,
+        telefono: document.getElementById('paciente-telefono').value,
+        fecha: document.getElementById('paciente-fecha').value, 
+        hora: document.getElementById('paciente-hora').value,
+        motivo: motivo, 
+        estado: 'Pendiente', 
+        creadoEn: firebase.firestore.FieldValue.serverTimestamp()
     };
     try {
         await db.collection('citas').add(citaObj); alert('¡Tu cita ha sido agendada con éxito!');

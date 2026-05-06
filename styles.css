@@ -19,7 +19,8 @@ body { background-color: var(--bg); color: var(--text); }
 
 /* Formularios y Botones */
 label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 5px; margin-top: 15px; }
-input, select, textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; }
+input, select, textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; text-transform: uppercase; }
+input[type="email"], input[type="password"] { text-transform: none; }
 input:focus, select:focus, textarea:focus { border-color: var(--primary); }
 
 button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; }
@@ -28,9 +29,18 @@ button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weig
 .btn-secondary { background-color: white; color: var(--text); border: 1px solid var(--line); }
 .btn-secondary:hover { background-color: #f1f5f9; }
 .btn-signos { background-color: #f59e0b; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; }
+.btn-disabled { background-color: #e2e8f0 !important; color: #94a3b8 !important; cursor: not-allowed !important; border: none !important; }
 
-/* Modales */
+/* Modales y Pestañas */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.tabs { display: flex; overflow-x: auto; border-bottom: 2px solid var(--line); margin-bottom: 15px; }
+.tab-btn { padding: 10px 15px; background: transparent; border: none; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: 0.2s; }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-content { display: none; animation: fadeIn 0.3s; }
+.tab-content.active { display: block; }
+.badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+.badge-active { background: #dcfce7; color: #166534; }
+.badge-suspended { background: #fee2e2; color: #991b1b; }
 
 /* Layout Panel (Sidebar) */
 .app-layout { display: flex; height: 100vh; background-color: var(--bg); overflow: hidden; }
@@ -65,9 +75,7 @@ button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weig
 .hora-btn { padding: 8px; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
 .hora-btn.bloqueada { background-color: var(--danger); color: white; border-color: var(--danger); }
 
-/* =========================================
-   DISEÑO RESPONSIVO (MÓVILES Y TABLETS)
-   ========================================= */
+/* RESPONSIVO */
 .menu-btn { display: none; background: transparent; border: none; font-size: 24px; color: var(--primary); cursor: pointer; width: auto; padding: 0; margin-right: 15px; }
 .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; }
 
@@ -84,5 +92,4 @@ button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weig
     .calendario-grid { gap: 2px; }
     .dia-celda { padding: 10px 0; font-size: 14px; }
     .dia-semana { font-size: 11px; }
-    input, select, textarea { font-size: 16px; }
 }

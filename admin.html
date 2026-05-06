@@ -65,7 +65,6 @@
 
                 <div id="mod-agenda" class="module-section">
                     <h2>Agenda Médica</h2>
-                    <p style="color: var(--muted); margin-bottom: 20px;">Administra tus días, visualiza citas y bloquea horarios.</p>
                     <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                         <div class="card" style="flex: 1; min-width: 100%;">
                             <div class="calendario-header">
@@ -93,7 +92,8 @@
 
                 <div id="mod-pacientes" class="module-section">
                     <h2>Directorio de Pacientes</h2>
-                    <input type="text" id="busqueda-paciente" style="margin-top: 15px; margin-bottom: 20px;" placeholder="Buscar por nombre, teléfono o expediente..." onkeyup="buscarPaciente()">
+                    <button class="btn-primary" onclick="document.getElementById('modal-nuevo-paciente').style.display='flex'" style="margin-top: 15px; margin-bottom:10px; width:auto; padding: 8px 15px;">+ Crear Expediente Sin Cita</button>
+                    <input type="text" id="busqueda-paciente" style="margin-top: 15px; margin-bottom: 20px;" placeholder="Buscar por nombre, teléfono o expediente..." onkeyup="buscarPaciente()" style="text-transform:uppercase;">
                     <div id="lista-busqueda"></div>
                 </div>
 
@@ -104,35 +104,69 @@
                             <label>Foto de Perfil</label>
                             <input type="file" id="perfil-foto" accept="image/*">
                             <label>Nombre Completo</label>
-                            <input type="text" id="perfil-nombre" required>
+                            <input type="text" id="perfil-nombre" required style="text-transform:uppercase;">
                             <div id="campos-doctor">
                                 <label>Cédula Profesional</label>
-                                <input type="text" id="perfil-cedula">
+                                <input type="text" id="perfil-cedula" style="text-transform:uppercase;">
                                 <label>Especialidad</label>
-                                <input type="text" id="perfil-especialidad">
+                                <input type="text" id="perfil-especialidad" style="text-transform:uppercase;">
                             </div>
                             <button type="button" class="btn-primary" style="margin-top: 20px;" onclick="solicitarGuardarPerfil()">Guardar Cambios</button>
+                        </form>
+                        
+                        <hr style="margin:25px 0; border:0; border-top:1px solid var(--line);">
+                        
+                        <h3 style="color:var(--text); font-size:16px;">Privacidad y Seguridad</h3>
+                        <form id="form-password" onsubmit="cambiarContrasena(event)">
+                            <label>Nueva Contraseña (Mínimo 6 caracteres)</label>
+                            <input type="password" id="perfil-pass" minlength="6" required>
+                            <button type="submit" class="btn-secondary" style="margin-top: 10px; border-color:var(--primary); color:var(--primary);">Actualizar Contraseña</button>
                         </form>
                     </div>
                 </div>
 
                 <div id="mod-asistencia" class="module-section">
                     <h2>Administración de Staff</h2>
-                    <div class="card" style="max-width: 500px;">
-                        <h3>Registrar Nuevo Personal</h3>
-                        <form id="form-staff" onsubmit="crearPersonal(event)">
-                            <label>Rol</label>
-                            <select id="staff-rol" required><option value="enfermera">Enfermero(a)</option><option value="doctor">Doctor(a)</option></select>
-                            <label>Nombre</label><input type="text" id="staff-nombre" required>
-                            <label>Correo</label><input type="email" id="staff-email" required>
-                            <label>Contraseña</label><input type="password" id="staff-password" required minlength="6">
-                            <button type="submit" class="btn-primary" style="margin-top: 20px; background-color: #10b981;">Crear Cuenta</button>
-                        </form>
+                    <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                        <div class="card" style="flex:1; min-width:300px; max-width: 500px;">
+                            <h3>Registrar Nuevo Personal</h3>
+                            <form id="form-staff" onsubmit="crearPersonal(event)">
+                                <label>Rol</label>
+                                <select id="staff-rol" required><option value="enfermera">Enfermero(a)</option><option value="doctor">Doctor(a)</option></select>
+                                <label>Nombre</label><input type="text" id="staff-nombre" required style="text-transform:uppercase;">
+                                <label>Correo</label><input type="email" id="staff-email" required>
+                                <label>Contraseña Provisional</label><input type="password" id="staff-password" required minlength="6">
+                                <button type="submit" class="btn-primary" style="margin-top: 20px; background-color: #10b981;">Crear Cuenta</button>
+                            </form>
+                        </div>
+                        <div class="card" style="flex:1; min-width:300px; max-width: 500px;">
+                            <h3>Personal Registrado</h3>
+                            <p style="font-size:12px; color:var(--muted); margin-bottom:15px;">Suspenda por vacaciones o elimine a quienes ya no laboren.</p>
+                            <div id="lista-staff">Cargando personal...</div>
+                        </div>
                     </div>
                 </div>
 
             </section>
         </main>
+    </div>
+
+    <div id="modal-nuevo-paciente" class="modal" style="display: none;">
+        <div class="card" style="width: 100%; max-width: 400px; max-height: 95vh; overflow-y: auto;">
+            <h3 style="color:var(--primary);">Crear Expediente Directo</h3>
+            <form onsubmit="crearPacienteManual(event)">
+                <label>Nombre(s)</label><input type="text" id="man-nom" required style="text-transform:uppercase;">
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex:1"><label>Primer Apellido</label><input type="text" id="man-ap1" required style="text-transform:uppercase;"></div>
+                    <div style="flex:1"><label>Segundo Apellido</label><input type="text" id="man-ap2" style="text-transform:uppercase;"></div>
+                </div>
+                <label>Teléfono (10 dígitos)</label><input type="tel" id="man-tel" required pattern="[0-9]{10}">
+                <label>Fecha de Nacimiento</label><input type="date" id="man-nac" required>
+                <label>Sexo</label><select id="man-sexo" required><option value="MASCULINO">MASCULINO</option><option value="FEMENINO">FEMENINO</option></select>
+                <button type="submit" class="btn-primary" style="margin-top: 20px;">Guardar Expediente</button>
+                <button type="button" onclick="document.getElementById('modal-nuevo-paciente').style.display='none'" class="btn-secondary" style="margin-top: 10px;">Cancelar</button>
+            </form>
+        </div>
     </div>
 
     <div id="modal-vitals" class="modal" style="display: none;">
@@ -149,7 +183,7 @@
                     <div style="flex:1"><label>Temp (°C)</label><input type="number" step="0.1" id="vit-temp" required></div>
                     <div style="flex:1"><label>FC (lpm)</label><input type="number" id="vit-fc" required></div>
                 </div>
-                <button type="submit" class="btn-primary" style="margin-top: 20px;">Guardar y Asignar Expediente</button>
+                <button type="submit" class="btn-primary" style="margin-top: 20px;">Guardar y Asignar</button>
                 <button type="button" onclick="cerrarModalVitals()" class="btn-secondary" style="margin-top: 10px;">Cancelar</button>
             </form>
         </div>
@@ -161,13 +195,52 @@
             <div id="cons-signos-vitales"></div>
             <form onsubmit="guardarConsulta(event)">
                 <input type="hidden" id="cons-cita-id">
-                <label>Diagnóstico Médico</label>
+                
+                <label style="color:#0ea5e9;">📝 Nota Médica (Solo se guarda en el expediente, NO se imprime)</label>
+                <textarea id="cons-nota" rows="2" placeholder="Describa síntomas internos, evolución, observaciones..."></textarea>
+                
+                <hr style="margin:15px 0; border:0; border-top:1px solid var(--line);">
+
+                <label>Diagnóstico Médico (Sale en Receta)</label>
                 <textarea id="cons-diagnostico" rows="3" required></textarea>
-                <label>Tratamiento / Receta</label>
+                <label>Tratamiento / Receta (Sale en Receta)</label>
                 <textarea id="cons-receta" rows="5" required></textarea>
+                
                 <button type="submit" class="btn-primary" style="margin-top: 20px;">Finalizar y Emitir Receta (PDF)</button>
                 <button type="button" onclick="cerrarModalConsulta()" class="btn-secondary" style="margin-top: 10px;">Cerrar</button>
             </form>
+        </div>
+    </div>
+
+    <div id="modal-historial" class="modal" style="display: none;">
+        <div class="card" style="width: 100%; max-width: 700px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
+            <div style="padding: 15px 20px; border-bottom: 1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="hist-nombre" style="margin:0; color:var(--primary);">Cargando...</h3>
+                <button onclick="document.getElementById('modal-historial').style.display='none'" class="btn-secondary" style="width:auto; padding:5px 15px; border-color:var(--danger); color:var(--danger);">Cerrar</button>
+            </div>
+            <div id="hist-datos" style="padding: 10px 20px; background:#f1f5f9; font-size:13px; color:var(--text);"></div>
+            
+            <div class="tabs" style="padding: 0 20px; margin-top:10px;">
+                <button id="btn-tab-apuntes" class="tab-btn active" onclick="cambiarTabHistorial('apuntes')">📝 Apuntes Médicos</button>
+                <button id="btn-tab-signos" class="tab-btn" onclick="cambiarTabHistorial('signos')">🩺 Historial Signos</button>
+                <button id="btn-tab-recetas" class="tab-btn" onclick="cambiarTabHistorial('recetas')">💊 Historial Recetas</button>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; padding: 20px; background:#fff;">
+                <div id="tab-apuntes" class="tab-content active">
+                    <form onsubmit="guardarApunteMedico(event)" style="margin-bottom: 20px; display:flex; gap:10px; flex-direction:column;">
+                        <textarea id="nuevo-apunte" rows="3" placeholder="Escriba aquí la evolución clínica..." required style="flex:1; resize:vertical;"></textarea>
+                        <button type="submit" class="btn-primary" style="width:100%;">Añadir Nota al Historial</button>
+                    </form>
+                    <div id="lista-apuntes-historial"></div>
+                </div>
+                <div id="tab-signos" class="tab-content">
+                    <div id="lista-signos-historial"></div>
+                </div>
+                <div id="tab-recetas" class="tab-content">
+                    <div id="lista-recetas-historial"></div>
+                </div>
+            </div>
         </div>
     </div>
 

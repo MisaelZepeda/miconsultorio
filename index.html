@@ -13,10 +13,35 @@
 
         <div class="card" style="max-width: 500px; margin: 0 auto;">
             <form id="form-agendar" onsubmit="agendarCita(event)">
-                <label>Nombre Completo del Paciente</label>
-                <input type="text" id="paciente-nombre" required placeholder="Ej. Juan Pérez">
                 
-                <label>Teléfono (A 10 dígitos)</label>
+                <label>Nombre(s) del Paciente</label>
+                <input type="text" id="paciente-nombre" required placeholder="Ej. Juan" style="text-transform: uppercase;">
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex:1;">
+                        <label>Primer Apellido</label>
+                        <input type="text" id="paciente-ap1" required placeholder="Ej. Pérez" style="text-transform: uppercase;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Segundo Apellido</label>
+                        <input type="text" id="paciente-ap2" placeholder="Opcional" style="text-transform: uppercase;">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex:1;">
+                        <label>Fecha de Nacimiento</label>
+                        <input type="date" id="paciente-nacimiento" required>
+                    </div>
+                    <div style="flex:1;">
+                        <label>Sexo</label>
+                        <select id="paciente-sexo" required>
+                            <option value="MASCULINO">MASCULINO</option>
+                            <option value="FEMENINO">FEMENINO</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <label>Teléfono Celular (A 10 dígitos)</label>
                 <input type="tel" id="paciente-telefono" required placeholder="Ej. 5551234567" pattern="[0-9]{10}">
                 
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -34,7 +59,7 @@
                 </div>
 
                 <label>Motivo de la consulta</label>
-                <input type="text" id="paciente-motivo" required placeholder="Breve descripción de sus síntomas">
+                <input type="text" id="paciente-motivo" required placeholder="Breve descripción de sus síntomas" style="text-transform: uppercase;">
 
                 <button type="submit" class="btn-primary" style="margin-top: 25px;">Confirmar Cita</button>
             </form>
