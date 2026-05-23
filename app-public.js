@@ -25,45 +25,55 @@ async function validarFecha(fechaSeleccionada) {
     const selectHora = document.getElementById('paciente-hora');
     const errorFecha = document.getElementById('error-fecha');
 
-    if (dia === 0 || dia === 6) {
-        errorFecha.style.display = 'block'; selectHora.disabled = true; selectHora.innerHTML = '<option value="">Cerrado los fines de semana</option>'; return;
+    if (dia === 0 || dia === 6) { 
+        errorFecha.style.display = 'block'; 
+        selectHora.innerHTML = '<option value="">Seleccione otra fecha</option>'; 
+        selectHora.disabled = true; 
+        return; 
     }
-    errorFecha.style.display = 'none'; selectHora.disabled = false; selectHora.innerHTML = '<option value="">Cargando horarios...</option>';
+    errorFecha.style.display = 'none';
 
-    let ocupadas = [];
-    try {
-        const snapshot = await db.collection('citas').where('fecha', '==', fechaSeleccionada).get();
-        snapshot.forEach(doc => ocupadas.push(doc.data().hora));
-        const docBloqueo = await db.collection('bloqueos').doc(fechaSeleccionada).get();
-        if (docBloqueo.exists) ocupadas = ocupadas.concat(docBloqueo.data().horas); 
-        generarIntervalos(ocupadas);
-    } catch(error) {
-        console.error("Error leyendo Firebase:", error);
-        selectHora.innerHTML = '<option value="">Error al cargar horarios</option>';
-    }
-}
+    selectHora.innerHTML = '<option value="">Cargando horarios...</option>';
+    selectHora.disabled = true;
 
-function generarIntervalos(ocupadas) {
-    const selectHora = document.getElementById('paciente-hora');
+    const snapshot = await db.collection('citas').where('fecha', '==', fechaSeleccionada).get();
+    const citasOcupadas = snapshot.docs.map(doc => doc.data().hora);
+    const bloqueosSnap = await db.collection('bloqueos').doc(fechaSeleccionada).get();
+    const horasBloqueadas = bloqueosSnap.exists ? bloqueosSnap.data().horas : [];
+
     selectHora.innerHTML = '<option value="">Seleccione una hora</option>';
-    let horaActual = CONFIG_HORARIO.inicio; let minutoActual = 0;
+    selectHora.disabled = false;
 
-    while (horaActual < CONFIG_HORARIO.fin) {
-        const horaFormateada = `${horaActual.toString().padStart(2, '0')}:${minutoActual.toString().padStart(2, '0')}`;
-        if (!ocupadas.includes(horaFormateada)) {
-            const option = document.createElement('option'); option.value = horaFormateada; option.textContent = horaFormateada; selectHora.appendChild(option);
+    let horaActual = CONFIG_HORARIO.inicio;
+    let minutoActual = 0;
+
+    while (horaActual < CONFIG_HORARIO.fin || (horaActual === CONFIG_HORARIO.fin && minutoActual === 0)) {
+        const horaFormateada = `${String(horaActual).padStart(2, '0')}:${String(minutoActual).padStart(2, '0')}`;
+        
+        if (!citasOcupadas.includes(horaFormateada) && !horasBloqueadas.includes(horaFormateada)) {
+            const option = document.createElement('option'); 
+            option.value = horaFormateada; 
+            option.textContent = horaFormateada; 
+            selectHora.appendChild(option);
         }
+        
         minutoActual += CONFIG_HORARIO.intervalo;
         if (minutoActual >= 60) { minutoActual = 0; horaActual++; }
     }
-    if (selectHora.options.length === 1) { selectHora.innerHTML = '<option value="">Agenda llena / No disponible</option>'; selectHora.disabled = true; }
+    
+    if (selectHora.options.length === 1) { 
+        selectHora.innerHTML = '<option value="">Agenda llena / No disponible</option>'; 
+        selectHora.disabled = true; 
+    }
 }
 
 async function agendarCita(e) {
     e.preventDefault();
-    const btn = document.querySelector('#form-agendar button'); btn.innerText = "Agendando..."; btn.disabled = true;
-    
-    // 1. APLICAMOS toUpperCase() PARA EVITAR DUPLICADOS POR MAYÚSCULAS/MINÚSCULAS
+    const btn = document.querySelector('#form-agendar button'); 
+    btn.innerText = "Agendando..."; 
+    btn.disabled = true;
+
+    // UNIFICACIÓN DE CAMPOS Y FORZADO DE MAYÚSCULAS
     const nom = document.getElementById('paciente-nombre').value.trim().toUpperCase();
     const ap1 = document.getElementById('paciente-ap1').value.trim().toUpperCase();
     const ap2 = document.getElementById('paciente-ap2').value.trim().toUpperCase();
@@ -72,7 +82,9 @@ async function agendarCita(e) {
 
     const citaObj = {
         nombre: nombreCompleto,
-        nombrePila: nom, apellido1: ap1, apellido2: ap2,
+        nombrePila: nom, 
+        apellido1: ap1, 
+        apellido2: ap2,
         nacimiento: document.getElementById('paciente-nacimiento').value,
         sexo: document.getElementById('paciente-sexo').value,
         telefono: document.getElementById('paciente-telefono').value,
@@ -82,9 +94,24 @@ async function agendarCita(e) {
         estado: 'Pendiente', 
         creadoEn: firebase.firestore.FieldValue.serverTimestamp()
     };
+    
     try {
-        await db.collection('citas').add(citaObj); alert('¡Tu cita ha sido agendada con éxito!');
+        await db.collection('citas').add(citaObj); 
+        // Cambiamos el alert() por SweetAlert2
+        Swal.fire({
+            icon: 'success',
+            title: '¡Cita Confirmada!',
+            text: 'Tu cita ha sido agendada con éxito en el sistema.',
+            confirmButtonColor: '#0ea5e9'
+        });
+        
         document.getElementById('form-agendar').reset();
-        document.getElementById('paciente-hora').innerHTML = '<option value="">Seleccione una fecha primero</option>'; document.getElementById('paciente-hora').disabled = true;
-    } catch (error) { alert('Hubo un error al guardar la cita.'); } finally { btn.innerText = "Confirmar Cita"; btn.disabled = false; }
+        document.getElementById('paciente-hora').innerHTML = '<option value="">Seleccione una fecha primero</option>'; 
+        document.getElementById('paciente-hora').disabled = true;
+    } catch (error) { 
+        Swal.fire('Error', 'Hubo un error de conexión al guardar la cita. Inténtalo de nuevo.', 'error');
+    } finally { 
+        btn.innerText = "Confirmar Cita"; 
+        btn.disabled = false; 
+    }
 }

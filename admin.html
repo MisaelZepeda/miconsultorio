@@ -6,6 +6,13 @@
     <title>Panel Médico Pro</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .tabla-prescripcion { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 10px; }
+        .tabla-prescripcion th { background: #f1f5f9; text-align: left; padding: 8px; font-size: 12px; color: var(--muted); }
+        .tabla-prescripcion td { padding: 5px; }
+        .tabla-prescripcion input { padding: 8px; font-size: 13px; }
+        .btn-remove-row { background: var(--danger); color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    </style>
 </head>
 <body>
 
@@ -106,8 +113,9 @@
                     <h2>Personalizar Perfil y Receta Médica</h2>
                     <div style="display:flex; flex-wrap:wrap; gap:20px;">
                         <div class="card" style="flex:1; min-width:300px;">
-                            <h3>👨‍⚕️ Datos del Médico</h3>
-                            <form id="form-perfil">
+                            
+                            <h3>👨‍⚕️ Datos del Médico (Requiere contraseña)</h3>
+                            <form id="form-datos-medicos">
                                 <label>Foto de Perfil (Panel)</label>
                                 <input type="file" id="perfil-foto" accept="image/*">
                                 <label>Nombre del Médico (Para Receta)</label>
@@ -120,26 +128,53 @@
                                         <div style="flex:1"><label>Cédula Estatal</label><input type="text" id="perfil-ced-est" style="text-transform:uppercase;"></div>
                                     </div>
                                 </div>
-                                <hr style="margin:20px 0;">
-                                <h3>💊 Diseño de Receta</h3>
+                                <button type="button" class="btn-secondary" style="margin-top: 15px; border-color:var(--primary); color:var(--primary);" onclick="solicitarGuardarDatosMedicos()">Guardar Datos Personales</button>
+                            </form>
+
+                            <hr style="margin:25px 0;">
+                            
+                            <h3>💊 Diseño y Estilo de la Receta (Ajuste rápido)</h3>
+                            <form id="form-diseno-receta">
+                                <label>Estilo de Borde / Marco Decorativo</label>
+                                <select id="receta-borde" style="background: #fff; font-weight: bold;">
+                                    <option value="CUADRADO">LÍNEA CUADRADA MINIMALISTA</option>
+                                    <option value="REDONDEADO">BORDES REDONDEADOS MODERNOS</option>
+                                    <option value="GARIGOLES">MARCO CON GARIGOLES (CLÁSICO ELEGANTE)</option>
+                                    <option value="NINGUNO">SIN MARCO DECORATIVO</option>
+                                </select>
+
                                 <label>Logo (Esquina Sup. Izquierda)</label>
                                 <input type="file" id="receta-logo" accept="image/*">
                                 <label>Marca de Agua (Centro atenuado)</label>
                                 <input type="file" id="receta-watermark" accept="image/*">
-                                <label>Domicilio (Pie de página derecho)</label>
+                                <label>Domicilio (Aparece Abajo a la Derecha)</label>
                                 <textarea id="receta-domicilio" rows="2" style="text-transform:uppercase;"></textarea>
-                                <label>Texto pie de página (Izquierdo)</label>
-                                <input type="text" id="receta-pie-izq" style="text-transform:uppercase;" placeholder="Ej: Próxima cita en 15 días">
                                 
-                                <button type="button" class="btn-primary" style="margin-top: 20px;" onclick="solicitarGuardarPerfil()">Guardar Configuración</button>
+                                <div style="display: flex; gap: 15px; margin-top:10px;">
+                                    <div style="flex: 1;">
+                                        <label style="color:var(--primary);">Texto Pie Izquierdo - Línea 1</label>
+                                        <input type="text" id="receta-pie-izq1" style="text-transform:uppercase;" placeholder="Ej: PRÓXIMA CITA EN 15 DÍAS">
+                                        <label style="color:var(--primary); margin-top:5px;">Texto Pie Izquierdo - Línea 2</label>
+                                        <input type="text" id="receta-pie-izq2" style="text-transform:uppercase;" placeholder="Ej: FAVOR DE TRAER ESTUDIOS">
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <label style="color: #059669;">Texto Pie Derecho - Línea 1</label>
+                                        <input type="text" id="receta-pie-der1" style="text-transform:uppercase;" placeholder="Ej: HORARIO: LUN-VIE 9AM A 6PM">
+                                        <label style="color: #059669; margin-top:5px;">Texto Pie Derecho - Línea 2</label>
+                                        <input type="text" id="receta-pie-der2" style="text-transform:uppercase;" placeholder="Ej: URGENCIAS LLAMAR AL CELULAR">
+                                    </div>
+                                </div>
+                                
+                                <button type="button" class="btn-primary" style="margin-top: 25px;" onclick="guardarDisenoReceta()">Guardar Diseño de Receta</button>
                             </form>
                         </div>
+                        
                         <div class="card" style="flex:1; min-width:300px; height:fit-content;">
                             <h3 style="color:var(--text); font-size:16px;">Privacidad y Seguridad</h3>
                             <form id="form-password" onsubmit="cambiarContrasena(event)">
                                 <label>Nueva Contraseña (Mínimo 6 caracteres)</label>
                                 <input type="password" id="perfil-pass" minlength="6" required>
-                                <button type="submit" class="btn-secondary" style="margin-top: 10px; border-color:var(--primary); color:var(--primary);">Actualizar Contraseña</button>
+                                <button type="submit" class="btn-secondary" style="margin-top: 10px; border-color:var(--danger); color:var(--danger);">Actualizar Contraseña</button>
                             </form>
                         </div>
                     </div>
@@ -209,25 +244,32 @@
     </div>
 
     <div id="modal-consulta" class="modal" style="display: none;">
-        <div class="card" style="width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto;">
+        <div class="card" style="width: 100%; max-width: 750px; max-height: 90vh; overflow-y: auto;">
             <h3 id="cons-paciente-nombre" style="color: var(--primary);">Atención Médica</h3>
-            
             <div id="cons-info-paciente" style="margin:10px 0; padding:10px; background:#f1f5f9; border-radius:8px; font-size:13px;"></div>
-            
             <form onsubmit="guardarConsulta(event)">
                 <input type="hidden" id="cons-cita-id">
                 
                 <div style="background:#fff9c4; padding:10px; border-radius:8px; margin-bottom:15px;">
-                    <label style="margin-top:0; color:#f57f17;">📝 Nota Clínica (Privada / Solo Expediente)</label>
-                    <textarea id="cons-nota" rows="2" placeholder="Apuntes internos del doctor..."></textarea>
+                    <label style="margin-top:0; color:#f57f17;">📝 Nota Clínica (Privada)</label>
+                    <textarea id="cons-nota" rows="2" placeholder="Apuntes evolutivos privados del doctor..."></textarea>
                 </div>
 
-                <label>Diagnóstico Médico (Sale en Receta)</label>
-                <textarea id="cons-diagnostico" rows="3" required style="text-transform:uppercase;"></textarea>
-                <label>Tratamiento / Receta (Sale en Receta)</label>
-                <textarea id="cons-receta" rows="5" required style="text-transform:uppercase;"></textarea>
+                <label>Diagnóstico Médico</label>
+                <textarea id="cons-diagnostico" rows="2" required style="text-transform:uppercase; margin-bottom: 10px;"></textarea>
                 
-                <button type="submit" class="btn-primary" style="margin-top: 20px;">Finalizar y Emitir Receta (PDF)</button>
+                <div style="border: 1px solid var(--line); padding: 15px; border-radius: 8px; background: #fff;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="font-size:14px; color:var(--text);">💊 Prescripción Médica</strong>
+                        <button type="button" class="btn-primary" onclick="agregarRenglonMedicamento()" style="width:auto; padding:5px 12px; font-size:12px; background:#10b981;">+ Agregar Fila</button>
+                    </div>
+                    <table class="tabla-prescripcion">
+                        <thead><tr><th style="width: 45%;">Medicamento</th><th style="width: 45%;">Indicaciones de uso</th><th style="width: 10%; text-align:center;">Acción</th></tr></thead>
+                        <tbody id="tbody-medicamentos"></tbody>
+                    </table>
+                </div>
+                
+                <button type="submit" class="btn-primary" style="margin-top: 25px;">Finalizar y Emitir Receta (PDF)</button>
                 <button type="button" onclick="cerrarModalConsulta()" class="btn-secondary" style="margin-top: 10px;">Cerrar</button>
             </form>
         </div>
@@ -240,27 +282,21 @@
                 <button onclick="document.getElementById('modal-historial').style.display='none'" class="btn-secondary" style="width:auto; padding:5px 15px; border-color:var(--danger); color:var(--danger);">Cerrar</button>
             </div>
             <div id="hist-datos" style="padding: 10px 20px; background:#f1f5f9; font-size:13px; color:var(--text);"></div>
-            
             <div class="tabs" style="padding: 0 20px; margin-top:10px;">
-                <button id="btn-tab-apuntes" class="tab-btn active" onclick="cambiarTabHistorial('apuntes')">📝 Apuntes Médicos</button>
-                <button id="btn-tab-signos" class="tab-btn" onclick="cambiarTabHistorial('signos')">🩺 Historial Signos</button>
-                <button id="btn-tab-recetas" class="tab-btn" onclick="cambiarTabHistorial('recetas')">💊 Historial Recetas</button>
+                <button id="btn-tab-apuntes" class="tab-btn active" onclick="cambiarTabHistorial('apuntes')">📝 Apuntes</button>
+                <button id="btn-tab-signos" class="tab-btn" onclick="cambiarTabHistorial('signos')">🩺 Signos</button>
+                <button id="btn-tab-recetas" class="tab-btn" onclick="cambiarTabHistorial('recetas')">💊 Recetas</button>
             </div>
-
             <div style="flex: 1; overflow-y: auto; padding: 20px; background:#fff;">
                 <div id="tab-apuntes" class="tab-content active">
                     <form onsubmit="guardarApunteMedico(event)" style="margin-bottom: 20px; display:flex; gap:10px; flex-direction:column;">
                         <textarea id="nuevo-apunte" rows="3" placeholder="Escriba aquí la evolución clínica..." required style="flex:1; resize:vertical;"></textarea>
-                        <button type="submit" class="btn-primary" style="width:100%;">Añadir Nota al Historial</button>
+                        <button type="submit" class="btn-primary" style="width:100%;">Añadir Nota</button>
                     </form>
                     <div id="lista-apuntes-historial"></div>
                 </div>
-                <div id="tab-signos" class="tab-content">
-                    <div id="lista-signos-historial"></div>
-                </div>
-                <div id="tab-recetas" class="tab-content">
-                    <div id="lista-recetas-historial"></div>
-                </div>
+                <div id="tab-signos" class="tab-content"><div id="lista-signos-historial"></div></div>
+                <div id="tab-recetas" class="tab-content"><div id="lista-recetas-historial"></div></div>
             </div>
         </div>
     </div>

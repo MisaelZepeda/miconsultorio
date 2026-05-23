@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agendar Cita Médica</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <div class="container">
@@ -27,21 +28,22 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 10px;">
-                    <div style="flex:1;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 160px;">
                         <label>Fecha de Nacimiento</label>
                         <input type="date" id="paciente-nacimiento" required>
                     </div>
-                    <div style="flex:1;">
+                    <div style="flex: 1; min-width: 160px;">
                         <label>Sexo</label>
                         <select id="paciente-sexo" required>
+                            <option value="">Seleccione...</option>
                             <option value="MASCULINO">MASCULINO</option>
                             <option value="FEMENINO">FEMENINO</option>
                         </select>
                     </div>
                 </div>
-                
-                <label>Teléfono Celular (A 10 dígitos)</label>
+
+                <label>Teléfono Celular (10 dígitos)</label>
                 <input type="tel" id="paciente-telefono" required placeholder="Ej. 5551234567" pattern="[0-9]{10}">
                 
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
