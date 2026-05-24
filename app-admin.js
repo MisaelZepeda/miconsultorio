@@ -114,9 +114,6 @@ function comprimirImagen(file, maxWidth, maxHeight, quality) {
     }); 
 }
 
-// ---------------------------------------------------------------------
-// FUNCIÓN 1: GUARDAR DATOS PERSONALES (SÍ PIDE CONTRASEÑA DE SEGURIDAD)
-// ---------------------------------------------------------------------
 function solicitarGuardarDatosMedicos() { 
     Swal.fire({ 
         title: 'Confirmar Identidad', 
@@ -131,7 +128,6 @@ function solicitarGuardarDatosMedicos() {
 async function guardarDatosMedicosReal(password) {
     try { await auth.signInWithEmailAndPassword(auth.currentUser.email, password); } catch(e) { Swal.fire('Error', 'Contraseña incorrecta.', 'error'); return; }
     
-    // Mostramos estado de carga
     Swal.fire({ title: 'Guardando datos...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
     const updateData = { nombre: document.getElementById('perfil-nombre').value.toUpperCase() }; 
@@ -154,9 +150,6 @@ async function guardarDatosMedicosReal(password) {
     Swal.fire('¡Seguridad Ok!', 'Datos personales actualizados correctamente.', 'success');
 }
 
-// ---------------------------------------------------------------------
-// FUNCIÓN 2: GUARDAR DISEÑO DE RECETA (SOLO CONFIRMACIÓN RÁPIDA, NO PIDE CONTRASEÑA)
-// ---------------------------------------------------------------------
 async function guardarDisenoReceta() {
     const confirm = await Swal.fire({
         title: '¿Guardar Diseño?',
@@ -168,7 +161,6 @@ async function guardarDisenoReceta() {
 
     if (!confirm.isConfirmed) return;
 
-    // Mostramos estado de carga
     Swal.fire({ title: 'Procesando imágenes y textos...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
     const updateData = { bordeReceta: document.getElementById('receta-borde').value }; 
@@ -265,7 +257,7 @@ async function crearPacienteManual(e) {
 }
 
 // ==========================================
-// TOMA DE SIGNOS Y BUSCADOR PREDICTIVO INTEGRADÓ
+// TOMA DE SIGNOS Y BUSCADOR PREDICTIVO
 // ==========================================
 async function abrirModalVitals(idCita) { 
     const docCita = await db.collection('citas').doc(idCita).get(); const cita = docCita.data();
@@ -416,13 +408,19 @@ async function guardarConsulta(e) {
     filas.forEach(row => {
         const m = row.querySelector('.med-name-input').value.trim().toUpperCase();
         const i = row.querySelector('.med-inst-input').value.trim().toUpperCase();
-        if(m) { medicamentosPrescritos.push(`${m}\n   ↳ ${i}`); }
+        if(m) { medicamentosPrescritos.push(`${m}\n   -> ${i}`); }
     });
 
     const recetaTextoFinal = medicamentosPrescritos.join('\n\n');
 
     const docCita = await db.collection('citas').doc(id).get(); const cita = docCita.data();
-    let expNum = 'S/N'; if(cita.pacienteId){ const docP = await db.collection('pacientes').doc(cita.pacienteId).get(); expNum = docP.data().numExpediente || 'S/N'; }
+    
+    // PREVENCIÓN DE ERROR: Verificamos si el paciente existe antes de leer sus datos
+    let expNum = 'S/N'; 
+    if(cita.pacienteId){ 
+        const docP = await db.collection('pacientes').doc(cita.pacienteId).get(); 
+        if(docP.exists) { expNum = docP.data().numExpediente || 'S/N'; }
+    }
 
     if (notaSecreta && cita.pacienteId) {
         await db.collection('apuntes').add({ pacienteId: cita.pacienteId, texto: notaSecreta, fecha: firebase.firestore.FieldValue.serverTimestamp() });
@@ -607,7 +605,15 @@ async function cargarFichaClinica() {
         citasArr.forEach(c => {
             const f = formatearFechaInvertida(c.fecha);
             if(c.signosVitales) { htmlSignos += `<div style="padding:10px; border-bottom:1px solid #eee; font-size:13px;"><b>${f}</b><br>Peso: ${c.signosVitales.peso}kg | Estatura: ${c.signosVitales.estatura}m | PA: ${c.signosVitales.presion} | Temp: ${c.signosVitales.temperatura}°C | FC: ${c.signosVitales.frecuenciaCardiaca}lpm</div>`; }
-            if(c.diagnostico) { htmlRecetas += `<div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;"><div style="font-size:13px;"><b>${f}</b><br><span style="color:var(--muted);">${c.diagnostico}</span></div><button onclick="generarPDF('${c.nombre.replace(/'/g,"\\'")}','${c.diagnostico.replace(/'/g,"\\'")}', '${c.receta.replace(/'/g,"\\'")}', '${c.fecha}', '')" class="btn-secondary" style="width:auto; padding:5px 10px; font-size:11px;">🖨️ Imprimir</button></div>`; }
+            
+            if(c.diagnostico) { 
+                // SOLUCIÓN: Limpiar saltos de línea para que el código HTML del botón no se rompa al reimprimir recetas generadas.
+                const safeNom = c.nombre ? c.nombre.replace(/'/g,"\\'") : '';
+                const safeDiag = c.diagnostico ? c.diagnostico.replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"") : '';
+                const safeRec = c.receta ? c.receta.replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"") : '';
+
+                htmlRecetas += `<div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;"><div style="font-size:13px;"><b>${f}</b><br><span style="color:var(--muted);">${c.diagnostico}</span></div><button onclick="generarPDF('${safeNom}','${safeDiag}', '${safeRec}', '${c.fecha}', '')" class="btn-secondary" style="width:auto; padding:5px 10px; font-size:11px;">🖨️ Imprimir</button></div>`; 
+            }
         });
     }
     document.getElementById('lista-signos-historial').innerHTML = htmlSignos || '<p style="color:var(--muted);">No hay registro de signos vitales.</p>';
@@ -622,6 +628,16 @@ function cambiarMes(delta) { fechaNav.setMonth(fechaNav.getMonth() + delta); car
 async function cargarDatosCalendario() { const year = fechaNav.getFullYear(), month = fechaNav.getMonth(); const p = `${year}-${String(month + 1).padStart(2, '0')}-01`, u = `${year}-${String(month + 1).padStart(2, '0')}-31`; const cSnap = await db.collection('citas').where('fecha', '>=', p).where('fecha', '<=', u).get(); citasDelMes = cSnap.docs.map(d => d.data()); const bSnap = await db.collection('bloqueos').where('fecha', '>=', p).where('fecha', '<=', u).get(); bloqueosDelMes = bSnap.docs.map(d => d.data()); dibujarCalendario(); }
 function dibujarCalendario() { const year = fechaNav.getFullYear(), month = fechaNav.getMonth(); document.getElementById('mes-actual').innerText = fechaNav.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }); const grid = document.getElementById('calendario-body'); grid.innerHTML = ''; const p = new Date(year, month, 1).getDay(), d = new Date(year, month + 1, 0).getDate(); for (let i = 0; i < p; i++) grid.appendChild(Object.assign(document.createElement('div'), {className: 'dia-celda vacio'})); for (let i = 1; i <= d; i++) { const s = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`, div = document.createElement('div'); div.className = 'dia-celda'; div.innerText = i; if (s === new Date().toISOString().split('T')[0]) div.classList.add('hoy'); if (s === fechaSeleccionada) div.classList.add('seleccionado'); if (citasDelMes.some(c => c.fecha === s)) div.appendChild(Object.assign(document.createElement('div'), {className: 'dot-cita'})); if (bloqueosDelMes.some(b => b.fecha === s && b.horas.length >= 10)) div.classList.add('bloqueado'); div.onclick = () => seleccionarDiaCalendario(s, i, citasDelMes.filter(c => c.fecha === s), bloqueosDelMes.find(b => b.fecha === s)); grid.appendChild(div); } }
 function seleccionarDiaCalendario(s, i, c, b) { fechaSeleccionada = s; dibujarCalendario(); document.getElementById('dia-detalle-titulo').innerText = new Date(s + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }); const p = document.getElementById('panel-citas-dia'); p.innerHTML = c.length ? c.map(x => `<div style="font-size:13px;border-bottom:1px solid #eee;padding:5px;"><b>${x.hora}</b> - ${x.nombre}</div>`).join('') : 'Sin citas'; if (currentUserRole === 'doctor') { document.getElementById('panel-bloqueos').style.display = 'block'; dibujarHorasBloqueo(b ? b.horas : []); } }
+
 const TODAS_LAS_HORAS = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30"];
 function dibujarHorasBloqueo(b) { const c = document.getElementById('lista-horas-bloqueo'); c.innerHTML = TODAS_LAS_HORAS.map(h => `<button class="hora-btn ${b?.includes(h) ? 'bloqueada' : ''}" onclick="this.classList.toggle('bloqueada')">${h}</button>`).join(''); }
+
+function bloquearTodoElDia() {
+    const botones = document.querySelectorAll('.hora-btn');
+    const todosBloqueados = Array.from(botones).every(b => b.classList.contains('bloqueada'));
+    if(todosBloqueados) { botones.forEach(b => b.classList.remove('bloqueada')); }
+    else { botones.forEach(b => b.classList.add('bloqueada')); }
+    guardarBloqueosDia(); 
+}
+
 async function guardarBloqueosDia() { const h = Array.from(document.querySelectorAll('.hora-btn.bloqueada')).map(x => x.innerText); try { if (!h.length) await db.collection('bloqueos').doc(fechaSeleccionada).delete(); else await db.collection('bloqueos').doc(fechaSeleccionada).set({ fecha: fechaSeleccionada, horas: h }); Swal.fire('Ok', 'Agenda actualizada', 'success'); cargarDatosCalendario(); } catch(e) {} }
