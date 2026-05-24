@@ -93,3 +93,21 @@ button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weig
     .dia-celda { padding: 10px 0; font-size: 14px; }
     .dia-semana { font-size: 11px; }
 }
+/* =========================================
+   ESTILOS PARA ICONOS PERSONALIZADOS
+   ========================================= */
+.custom-icon {
+    width: 20px;           /* Ancho del icono en el menú */
+    height: 20px;          /* Alto del icono en el menú */
+    vertical-align: middle; /* Lo centra con respecto al texto */
+    margin-right: 8px;     /* Separación entre el icono y el texto */
+    display: inline-block;
+}
+
+.btn-icon {
+    width: 14px;           /* Un poco más pequeño para botones secundarios */
+    height: 14px;
+    vertical-align: middle;
+    margin-right: 5px;
+    display: inline-block;
+}

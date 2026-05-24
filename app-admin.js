@@ -415,7 +415,6 @@ async function guardarConsulta(e) {
 
     const docCita = await db.collection('citas').doc(id).get(); const cita = docCita.data();
     
-    // PREVENCIÓN DE ERROR: Verificamos si el paciente existe antes de leer sus datos
     let expNum = 'S/N'; 
     if(cita.pacienteId){ 
         const docP = await db.collection('pacientes').doc(cita.pacienteId).get(); 
@@ -426,8 +425,15 @@ async function guardarConsulta(e) {
         await db.collection('apuntes').add({ pacienteId: cita.pacienteId, texto: notaSecreta, fecha: firebase.firestore.FieldValue.serverTimestamp() });
     }
 
-    await db.collection('citas').doc(id).update({ diagnostico: diag, receta: recetaTextoFinal, estado: 'Completada' });
-    generarPDF(cita.nombre, diag, recetaTextoFinal, cita.fecha, expNum);
+    // SOLUCIÓN: Guardar un "Snapshot" exacto de la información del Doctor activo al momento de guardar
+    await db.collection('citas').doc(id).update({ 
+        diagnostico: diag, 
+        receta: recetaTextoFinal, 
+        estado: 'Completada',
+        doctorInfo: currentUserData  // <-- Guarda cédula, nombre, logos tal como están AHORA
+    });
+
+    generarPDF(cita.nombre, diag, recetaTextoFinal, cita.fecha, expNum, currentUserData);
     cerrarModalConsulta(); e.target.reset(); Swal.fire('¡Listo!', 'Consulta guardada y Receta emitida.', 'success');
 }
 
@@ -446,10 +452,13 @@ function dibujarMarcoReceta(doc, estilo) {
     doc.restoreGraphicsState();
 }
 
-function generarPDF(n, d, r, f, expNum) {
+// SOLUCIÓN: Ahora recibe un 6to parámetro con la configuración del doctor. Si está vacío, usa el doctor activo
+function generarPDF(n, d, r, f, expNum, doctorConfig) {
     const { jsPDF } = window.jspdf; 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [8.5, 5.5] });
-    const config = currentUserData;
+    
+    // Se extrae la configuración asegurando retrocompatibilidad
+    const config = doctorConfig || currentUserData;
 
     dibujarMarcoReceta(doc, config.bordeReceta || 'CUADRADO');
 
@@ -497,6 +506,31 @@ function generarPDF(n, d, r, f, expNum) {
     doc.text(doc.splitTextToSize(config.domicilio || "", 3.0), 4.25, 4.8, { align: "center" });
 
     doc.autoPrint(); window.open(URL.createObjectURL(doc.output('blob')), '_blank');
+}
+
+// SOLUCIÓN: Reimprime usando el ID directo en la base de datos para recuperar la info blindada del doctor.
+async function reimprimirReceta(citaId) {
+    Swal.fire({ title: 'Generando receta original...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    try {
+        const docCita = await db.collection('citas').doc(citaId).get();
+        if(!docCita.exists) { Swal.fire('Error', 'No se encontró la cita.', 'error'); return; }
+        const c = docCita.data();
+        
+        let expNum = 'S/N'; 
+        if(c.pacienteId){ 
+            const docP = await db.collection('pacientes').doc(c.pacienteId).get(); 
+            if(docP.exists) { expNum = docP.data().numExpediente || 'S/N'; }
+        }
+
+        // Si la cita tiene datos del doctor guardados, los usa. Si no (citas viejas), usa el actual.
+        const configFijaDelDoctor = c.doctorInfo || currentUserData;
+        
+        generarPDF(c.nombre, c.diagnostico, c.receta, c.fecha, expNum, configFijaDelDoctor);
+        Swal.close();
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Error', 'Hubo un problema al imprimir.', 'error');
+    }
 }
 
 // ==========================================
@@ -601,18 +635,19 @@ async function cargarFichaClinica() {
     
     let htmlSignos = ''; let htmlRecetas = '';
     if(!snapCitas.empty) {
-        const citasArr = snapCitas.docs.map(d => d.data()).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+        // SOLUCIÓN: Agregamos d.id al mapeo para poder pasarlo en la reimpresión limpia.
+        const citasArr = snapCitas.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+        
         citasArr.forEach(c => {
             const f = formatearFechaInvertida(c.fecha);
             if(c.signosVitales) { htmlSignos += `<div style="padding:10px; border-bottom:1px solid #eee; font-size:13px;"><b>${f}</b><br>Peso: ${c.signosVitales.peso}kg | Estatura: ${c.signosVitales.estatura}m | PA: ${c.signosVitales.presion} | Temp: ${c.signosVitales.temperatura}°C | FC: ${c.signosVitales.frecuenciaCardiaca}lpm</div>`; }
             
             if(c.diagnostico) { 
-                // SOLUCIÓN: Limpiar saltos de línea para que el código HTML del botón no se rompa al reimprimir recetas generadas.
-                const safeNom = c.nombre ? c.nombre.replace(/'/g,"\\'") : '';
-                const safeDiag = c.diagnostico ? c.diagnostico.replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"") : '';
-                const safeRec = c.receta ? c.receta.replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"") : '';
-
-                htmlRecetas += `<div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;"><div style="font-size:13px;"><b>${f}</b><br><span style="color:var(--muted);">${c.diagnostico}</span></div><button onclick="generarPDF('${safeNom}','${safeDiag}', '${safeRec}', '${c.fecha}', '')" class="btn-secondary" style="width:auto; padding:5px 10px; font-size:11px;">🖨️ Imprimir</button></div>`; 
+                // SOLUCIÓN LIMPIA: El botón ahora sólo envía el ID, sin lidiar con brincos de línea.
+                htmlRecetas += `<div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="font-size:13px;"><b>${f}</b><br><span style="color:var(--muted);">${c.diagnostico}</span></div>
+                   <button onclick="reimprimirReceta('${c.id}')" class="btn-secondary" style="width:auto; padding:5px 10px; font-size:11px;">🖨️ Imprimir</button>                 
+                                </div>`; 
             }
         });
     }
@@ -627,7 +662,17 @@ let fechaNav = new Date(); let fechaSeleccionada = null; let citasDelMes = []; l
 function cambiarMes(delta) { fechaNav.setMonth(fechaNav.getMonth() + delta); cargarDatosCalendario(); }
 async function cargarDatosCalendario() { const year = fechaNav.getFullYear(), month = fechaNav.getMonth(); const p = `${year}-${String(month + 1).padStart(2, '0')}-01`, u = `${year}-${String(month + 1).padStart(2, '0')}-31`; const cSnap = await db.collection('citas').where('fecha', '>=', p).where('fecha', '<=', u).get(); citasDelMes = cSnap.docs.map(d => d.data()); const bSnap = await db.collection('bloqueos').where('fecha', '>=', p).where('fecha', '<=', u).get(); bloqueosDelMes = bSnap.docs.map(d => d.data()); dibujarCalendario(); }
 function dibujarCalendario() { const year = fechaNav.getFullYear(), month = fechaNav.getMonth(); document.getElementById('mes-actual').innerText = fechaNav.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }); const grid = document.getElementById('calendario-body'); grid.innerHTML = ''; const p = new Date(year, month, 1).getDay(), d = new Date(year, month + 1, 0).getDate(); for (let i = 0; i < p; i++) grid.appendChild(Object.assign(document.createElement('div'), {className: 'dia-celda vacio'})); for (let i = 1; i <= d; i++) { const s = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`, div = document.createElement('div'); div.className = 'dia-celda'; div.innerText = i; if (s === new Date().toISOString().split('T')[0]) div.classList.add('hoy'); if (s === fechaSeleccionada) div.classList.add('seleccionado'); if (citasDelMes.some(c => c.fecha === s)) div.appendChild(Object.assign(document.createElement('div'), {className: 'dot-cita'})); if (bloqueosDelMes.some(b => b.fecha === s && b.horas.length >= 10)) div.classList.add('bloqueado'); div.onclick = () => seleccionarDiaCalendario(s, i, citasDelMes.filter(c => c.fecha === s), bloqueosDelMes.find(b => b.fecha === s)); grid.appendChild(div); } }
-function seleccionarDiaCalendario(s, i, c, b) { fechaSeleccionada = s; dibujarCalendario(); document.getElementById('dia-detalle-titulo').innerText = new Date(s + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }); const p = document.getElementById('panel-citas-dia'); p.innerHTML = c.length ? c.map(x => `<div style="font-size:13px;border-bottom:1px solid #eee;padding:5px;"><b>${x.hora}</b> - ${x.nombre}</div>`).join('') : 'Sin citas'; if (currentUserRole === 'doctor') { document.getElementById('panel-bloqueos').style.display = 'block'; dibujarHorasBloqueo(b ? b.horas : []); } }
+function seleccionarDiaCalendario(s, i, c, b) { 
+    fechaSeleccionada = s; 
+    dibujarCalendario(); 
+    document.getElementById('dia-detalle-titulo').innerText = new Date(s + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }); 
+    const p = document.getElementById('panel-citas-dia'); 
+    p.innerHTML = c.length ? c.map(x => `<div style="font-size:13px;border-bottom:1px solid #eee;padding:5px;"><b>${x.hora}</b> - ${x.nombre}</div>`).join('') : 'Sin citas'; 
+    if (currentUserRole === 'doctor') { 
+        document.getElementById('panel-bloqueos-card').style.display = 'block'; 
+        dibujarHorasBloqueo(b ? b.horas : []); 
+    } 
+}
 
 const TODAS_LAS_HORAS = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30"];
 function dibujarHorasBloqueo(b) { const c = document.getElementById('lista-horas-bloqueo'); c.innerHTML = TODAS_LAS_HORAS.map(h => `<button class="hora-btn ${b?.includes(h) ? 'bloqueada' : ''}" onclick="this.classList.toggle('bloqueada')">${h}</button>`).join(''); }
